@@ -77,12 +77,19 @@ public final class GoogleDB {
 				"SELECT count(*) FROM sqlite_master WHERE type='table' AND name='"
 						+ TABLE_FILES + "';", Integer.class);
 		if (ret == 0) {
+			// jdbcTemplate
+			// .execute("CREATE TABLE "
+			// + TABLE_FILES
+			// +
+			// " (id text primary key, parentId text, largestChangeId integer, path text not null unique, "
+			// + "isDirectory boolean, length integer, "
+			// + "lastModified integer, md5Checksum integer)");
 			jdbcTemplate
-					.execute("CREATE TABLE "
-							+ TABLE_FILES
-							+ " (id text primary key, parentId text, largestChangeId integer, path text not null unique, "
-							+ "isDirectory boolean, length integer, "
-							+ "lastModified integer, md5Checksum integer)");
+					.execute("create table gdrive (id text, parentId text, largestChangeId integer, "
+							+ "path text not null, isDirectory boolean, length integer, lastModified integer, "
+							+ "md5Checksum text, "
+							+ "primary key (id,parentId))");
+			jdbcTemplate.execute("create index idx_path on gdrive (path)");
 		}
 
 		System.out.println("table created");

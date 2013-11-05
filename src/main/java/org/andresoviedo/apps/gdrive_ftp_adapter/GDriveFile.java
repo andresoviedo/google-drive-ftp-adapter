@@ -2,7 +2,6 @@ package org.andresoviedo.apps.gdrive_ftp_adapter;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -171,7 +170,7 @@ public class GDriveFile implements FtpFile, Serializable {
 	public final boolean setLastModified(long time) {
 		final GDriveFile newParam = new GDriveFile(null);
 		newParam.lastModified = time;
-		return googleHelper.updateFile(getId(), newParam, 3) != null;
+		return googleController.updateFile(getId(), newParam);
 	}
 
 	public final boolean setLastModified2(long time) {
@@ -384,9 +383,7 @@ public class GDriveFile implements FtpFile, Serializable {
 
 	@Override
 	public boolean move(FtpFile destination) {
-		// TODO: control de error por favor. gracias!
-		googleController.renameFile(this, destination.getName());
-		return true;
+		return googleController.renameFile(this, destination.getName());
 	}
 
 	@Override

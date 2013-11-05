@@ -32,10 +32,20 @@ public final class GoogleController {
 	public void init() {
 	}
 
-	public void renameFile(GDriveFile file, String newName) {
+	public boolean renameFile(GDriveFile file, String newName) {
 		System.out.println("Renaming file " + file + " to " + newName);
-		googleHelper.updateFile(file.getId(), new GDriveFile(newName), 3);
-		googleUpdate.reviewGoogleChanges();
+		boolean ret = updateFile(file.getId(), new GDriveFile(newName));
+		if (ret)
+			googleUpdate.reviewGoogleChanges();
+		return ret;
+	}
+
+	public boolean updateFile(String fileId, GDriveFile patch) {
+		System.out.println("Patching file " + fileId + " with " + patch);
+		boolean ret = googleHelper.updateFile(fileId, patch, 3) != null;
+		if (ret)
+			googleUpdate.reviewGoogleChanges();
+		return ret;
 	}
 
 }

@@ -650,19 +650,18 @@ public class GoogleHelper {
 						+ "' no existe. imposible renombrar");
 				return null;
 			}
+			// Rename the file.
+			Files.Patch patchRequest = drive.files().patch(fileId, file);
 
 			file = new File();
 			if (newParam.getName() != null) {
 				file.setTitle(newParam.getName());
+				patchRequest.setFields("title");
 			} else if (newParam.getLastModified() > 0) {
 				file.setModifiedDate(new DateTime(newParam.getLastModified()));
 			} else {
 				throw new UnsupportedOperationException();
 			}
-
-			// Rename the file.
-			Files.Patch patchRequest = drive.files().patch(fileId, file);
-			patchRequest.setFields("title");
 
 			File updatedFile = patchRequest.execute();
 			return updatedFile;

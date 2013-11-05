@@ -82,7 +82,7 @@ public class GoogleUpdate {
 	public long reviewGoogleChanges() {
 
 		// revisar lista de cambios de google
-		long largestChangeId = googleStore.getLowerChangedId();
+		long largestChangeId = googleStore.getLargestChangeId();
 		List<Change> googleChanges = googleHelper
 				.getAllChanges(largestChangeId);
 		if (googleChanges == null) {
