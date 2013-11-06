@@ -47,8 +47,9 @@ public class GDriveFileSystem implements FileSystemFactory, FileSystemView {
 		GDriveFile subPath = (GDriveFile) googleStore.getFileByPath(dir);
 		if (subPath != null && subPath.isDirectory()) {
 			currentPath = subPath;
+			return true;
 		}
-		return currentPath != null;
+		return false;
 	}
 
 	@Override

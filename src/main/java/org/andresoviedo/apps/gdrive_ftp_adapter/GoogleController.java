@@ -54,4 +54,12 @@ public final class GoogleController {
 		return ret;
 	}
 
+	public boolean trashFile(String id) {
+		logger.info("Deleting file " + id + "...");
+		boolean ret = googleHelper.trashFile(id, 3) != null;
+		if (ret)
+			googleUpdate.updateNow();
+		return ret;
+	}
+
 }

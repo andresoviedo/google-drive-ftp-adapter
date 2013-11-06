@@ -500,6 +500,8 @@ public class GoogleHelper {
 	 *         otherwise.
 	 */
 	java.io.File downloadFile(GDriveFile jfsgDriveFile) {
+		logger.info("Downloading file '" + jfsgDriveFile.getPath() + "'...");
+
 		java.io.File ret = null;
 
 		InputStream is = null;

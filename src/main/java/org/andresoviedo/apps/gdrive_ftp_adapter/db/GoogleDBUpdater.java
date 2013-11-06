@@ -94,6 +94,9 @@ public class GoogleDBUpdater {
 			public void run() {
 				logger.info("Running update task...");
 				try {
+					// Yield to Controller
+					Thread.sleep(1000);
+
 					// always sync pending directories first
 					List<String> unsynchChilds = null;
 					while (!(unsynchChilds = googleStore
@@ -238,7 +241,12 @@ public class GoogleDBUpdater {
 								+ folderFile.getPath() + "' already synched");
 					}
 
-					logger.info("synchronizing [" + folderFile.getPath()
+					int total = googleStore.getAllFolderIdsByChangeId(-1)
+							.size();
+					int totalPending = googleStore.getAllFolderIdsByChangeId(0)
+							.size();
+					logger.info("synchronizing (" + (total - totalPending)
+							+ " out of " + total + ") [" + folderFile.getPath()
 							+ "]...");
 					// TODO: borrar basura que pueda haber quedado de
 					// ejecuciones
