@@ -12,7 +12,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.andresoviedo.apps.gdrive_ftp_adapter.db.GoogleDB;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
@@ -58,6 +61,8 @@ import com.google.api.services.drive.model.Property;
  * 
  */
 public class GoogleHelper {
+
+	private static Log logger = LogFactory.getLog(GoogleHelper.class);
 
 	/**
 	 * Be sure to specify the name of your application. If the application name
@@ -124,7 +129,7 @@ public class GoogleHelper {
 			drive = new Drive.Builder(httpTransport, JSON_FACTORY, credential)
 					.setApplicationName(APPLICATION_NAME).build();
 
-			System.out.println("Success! Now add code here.");
+			logger.info("Success! Now add code here.");
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
@@ -176,7 +181,7 @@ public class GoogleHelper {
 				new LocalServerReceiver()).authorize("user");
 	}
 
-	List<GDriveFile> list(String rootPath, String folderId) {
+	public List<GDriveFile> list(String rootPath, String folderId) {
 		List<GDriveFile> ret = null;
 		List<com.google.api.services.drive.model.File> googleFiles = requestList(folderId);
 		if (googleFiles != null) {
@@ -201,11 +206,11 @@ public class GoogleHelper {
 
 	}
 
-	GDriveFile createJFSGDriveFile(String rootPath, File googleFile) {
+	public GDriveFile createJFSGDriveFile(String rootPath, File googleFile) {
 		GDriveFile jfsgFile = new GDriveFile();
 		String filename = getFilename(googleFile);
 		if (rootPath == null) {
-			System.err.println("cuidado. rootPath nulo para " + googleFile);
+			logger.error("cuidado. rootPath nulo para " + googleFile);
 		}
 		String path = rootPath == null || rootPath.length() == 0 ? filename
 				: rootPath + GoogleDB.FILE_SEPARATOR + filename;
@@ -223,7 +228,7 @@ public class GoogleHelper {
 		// System.out.print("isDirectory(" + getFilename(googleFile) + ")=");
 		boolean isDirectory = "application/vnd.google-apps.folder"
 				.equals(googleFile.getMimeType());
-		// System.out.println("=" + isDirectory);
+		// logger.info("=" + isDirectory);
 		return isDirectory;
 	}
 
@@ -250,7 +255,7 @@ public class GoogleHelper {
 	// try {
 	// List<File> ret = null;
 	// List<File> childIds = new ArrayList<File>();
-	// System.out.println("list(" + id + ")");
+	// logger.info("list(" + id + ")");
 	//
 	// Children.List request = drive.children().list(id);
 	//
@@ -280,7 +285,7 @@ public class GoogleHelper {
 	// throw new RuntimeException(e);
 	// } catch (Exception e) {
 	// if (retry > 0) {
-	// System.out.println("retrying...");
+	// logger.info("retrying...");
 	// return requestListImpl(id, --retry);
 	// }
 	// throw new RuntimeException(e);
@@ -290,7 +295,7 @@ public class GoogleHelper {
 	public List<File> requestListImpl(String id, int retry) {
 		try {
 			List<File> childIds = new ArrayList<File>();
-			System.out.println("list(" + id + ")");
+			logger.debug("list(" + id + ")");
 
 			Files.List request = drive.files().list();
 			request.setQ("trashed = false and '" + id + "' in parents");
@@ -314,7 +319,7 @@ public class GoogleHelper {
 			throw new RuntimeException(e);
 		} catch (Exception e) {
 			if (retry > 0) {
-				System.out.println("retrying...");
+				logger.info("retrying...");
 				return requestListImpl(id, --retry);
 			}
 			throw new RuntimeException(e);
@@ -354,7 +359,7 @@ public class GoogleHelper {
 			throw new RuntimeException(e);
 		} catch (Exception e) {
 			if (retry > 0) {
-				System.out.println("retrying...");
+				logger.info("retrying...");
 				return requestFileByName(id, filename, --retry);
 			}
 			throw new RuntimeException(e);
@@ -366,7 +371,7 @@ public class GoogleHelper {
 			System.out.print("getFile(" + fileId + ")");
 
 			File file = drive.files().get(fileId).execute();
-			System.out.println("=" + getFilename(file));
+			logger.info("=" + getFilename(file));
 
 			return file;
 		} catch (GoogleJsonResponseException e) {
@@ -383,7 +388,7 @@ public class GoogleHelper {
 		// System.out.print("getFilename(" + file.getId() + ")");
 		String filename = file.getTitle() != null ? file.getTitle() : file
 				.getOriginalFilename();
-		// System.out.println("=" + filename);
+		// logger.info("=" + filename);
 		return filename;
 	}
 
@@ -400,19 +405,18 @@ public class GoogleHelper {
 	 */
 	private boolean isFileInFolder(String folderId, String fileId) {
 		try {
-			System.out.println("isFileInFolder(" + folderId + "," + fileId
-					+ ")");
+			logger.info("isFileInFolder(" + folderId + "," + fileId + ")");
 			drive.children().get(folderId, fileId).execute();
 		} catch (HttpResponseException e) {
 			if (e.getStatusCode() == 404) {
 				return false;
 			} else {
-				System.out.println("An error occurred: " + e);
+				logger.info("An error occurred: " + e);
 				e.printStackTrace();
 				throw new RuntimeException(e);
 			}
 		} catch (IOException e) {
-			System.out.println("An error occurred: " + e);
+			logger.info("An error occurred: " + e);
 			e.printStackTrace();
 			throw new RuntimeException(e);
 		}
@@ -433,17 +437,17 @@ public class GoogleHelper {
 	 */
 	private String getProperty(String fileId, String key, String visibility) {
 		try {
-			System.out.println("request getProperty...");
+			logger.info("request getProperty...");
 			Properties.Get request = drive.properties().get(fileId, key);
 			request.setVisibility(visibility);
 			Property property = request.execute();
 
-			System.out.println("Key: " + property.getKey());
-			System.out.println("Value: " + property.getValue());
-			System.out.println("Visibility: " + property.getVisibility());
+			logger.info("Key: " + property.getKey());
+			logger.info("Value: " + property.getValue());
+			logger.info("Visibility: " + property.getVisibility());
 			return property.getValue();
 		} catch (IOException ex) {
-			System.out.println("An error occured: " + ex);
+			logger.info("An error occured: " + ex);
 			throw new RuntimeException(ex);
 		}
 	}
@@ -452,13 +456,34 @@ public class GoogleHelper {
 			throws MalformedURLException {
 		// get download URL
 		File googleFile = getFile(jfsgDriveFile.getId());
-		if (googleFile != null && googleFile.getDownloadUrl() != null
-				&& googleFile.getDownloadUrl().length() > 0) {
-			jfsgDriveFile.setDownloadUrl(new URL(googleFile.getDownloadUrl()));
-		} else {
-			throw new RuntimeException("No se ha podido descargar el fichero '"
-					+ jfsgDriveFile.getName() + "'");
+		switch (googleFile.getMimeType()) {
+		case "application/vnd.google-apps.spreadsheet":
+			jfsgDriveFile
+					.setDownloadUrl(new URL(
+							googleFile
+									.getExportLinks()
+									.get("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")));
+			// file.getExportLinks().get("application/pdf")
+			break;
+		case "application/vnd.google-apps.document":
+			jfsgDriveFile
+					.setDownloadUrl(new URL(
+							googleFile
+									.getExportLinks()
+									.get("application/vnd.openxmlformats-officedocument.wordprocessingml.document")));
+			break;
+		default:
+			if (googleFile != null && googleFile.getDownloadUrl() != null
+					&& googleFile.getDownloadUrl().length() > 0) {
+				jfsgDriveFile.setDownloadUrl(new URL(googleFile
+						.getDownloadUrl()));
+			} else {
+				throw new RuntimeException(
+						"No se ha podido descargar el fichero '"
+								+ jfsgDriveFile.getName() + "'");
+			}
 		}
+
 	}
 
 	private boolean exists(File googleFile) {
@@ -562,7 +587,7 @@ public class GoogleHelper {
 			}
 
 			// Uncomment the following line to print the File ID.
-			System.out.println("File ID: %s" + file.getId());
+			logger.info("File ID: %s" + file.getId());
 
 			return file;
 		} catch (IOException e) {
@@ -595,7 +620,7 @@ public class GoogleHelper {
 		return ret;
 	}
 
-	List<Change> getAllChanges(Long startChangeId) {
+	public List<Change> getAllChanges(Long startChangeId) {
 		return retrieveAllChangesImpl(startChangeId, 3);
 	}
 
@@ -615,7 +640,7 @@ public class GoogleHelper {
 			Changes.List request = drive.changes().list();
 			request.setIncludeSubscribed(false);
 			request.setIncludeDeleted(true);
-			if (startChangeId != null) {
+			if (startChangeId != null && startChangeId > 0) {
 				request.setStartChangeId(startChangeId);
 			}
 			do {
@@ -633,7 +658,7 @@ public class GoogleHelper {
 			// throw new RuntimeException(e);
 		} catch (Exception e) {
 			if (retry > 0) {
-				System.out.println("retrying...");
+				logger.info("retrying...");
 				return retrieveAllChangesImpl(startChangeId, --retry);
 			}
 			e.printStackTrace();
@@ -646,19 +671,19 @@ public class GoogleHelper {
 			// First retrieve the file from the API.
 			File file = getFile(fileId);
 			if (file == null) {
-				System.err.println("fichero '" + fileId
+				logger.error("fichero '" + fileId
 						+ "' no existe. imposible renombrar");
 				return null;
 			}
 			// Rename the file.
-			Files.Patch patchRequest = drive.files().patch(fileId, file);
-
 			file = new File();
+			Files.Patch patchRequest = drive.files().patch(fileId, file);
 			if (newParam.getName() != null) {
 				file.setTitle(newParam.getName());
 				patchRequest.setFields("title");
 			} else if (newParam.getLastModified() > 0) {
 				file.setModifiedDate(new DateTime(newParam.getLastModified()));
+				patchRequest.setSetModifiedDate(true);
 			} else {
 				throw new UnsupportedOperationException();
 			}
@@ -667,7 +692,7 @@ public class GoogleHelper {
 			return updatedFile;
 		} catch (Exception e) {
 			if (retry > 0) {
-				System.out.println("retrying...");
+				logger.info("retrying...");
 				updateFile(fileId, newParam, --retry);
 			}
 			throw new RuntimeException(e);
@@ -713,11 +738,11 @@ public class GoogleHelper {
 
 	public File trashFile(String fileId, int retry) {
 		try {
-			System.out.println("Deleting file " + fileId);
+			logger.info("Deleting file " + fileId);
 			return drive.files().trash(fileId).execute();
 		} catch (IOException e) {
 			if (retry > 0) {
-				System.out.println("retrying...");
+				logger.info("retrying...");
 				return trashFile(fileId, --retry);
 			}
 			throw new RuntimeException(e);

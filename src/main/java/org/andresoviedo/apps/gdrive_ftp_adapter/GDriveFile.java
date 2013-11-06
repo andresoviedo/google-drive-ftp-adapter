@@ -9,8 +9,11 @@ import java.io.Serializable;
 import java.net.URL;
 import java.util.List;
 
+import org.andresoviedo.apps.gdrive_ftp_adapter.db.GoogleDB;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.ftpserver.ftplet.FtpFile;
 
 /**
@@ -21,6 +24,8 @@ import org.apache.ftpserver.ftplet.FtpFile;
  * @version $Id: JFSGDriveFile.java,v 1.15 2009/10/02 08:21:19 heidrich Exp $
  */
 public class GDriveFile implements FtpFile, Serializable {
+	
+	private static Log logger = LogFactory.getLog(GDriveFile.class);
 
 	private static final long serialVersionUID = 1L;
 
@@ -196,7 +201,7 @@ public class GDriveFile implements FtpFile, Serializable {
 	 * @see JFSFile#delete()
 	 */
 	public final boolean delete() {
-		System.out.println("Deleting file " + this);
+		logger.info("Deleting file " + this);
 		return googleHelper.trashFile(getId(), 3) != null;
 	}
 
@@ -219,33 +224,33 @@ public class GDriveFile implements FtpFile, Serializable {
 	/**
 	 * @see JFSFile#preCopyTgt(JFSFile)
 	 */
-	protected boolean preCopyTgt(GDriveFile srcFile) {
-		try {
-			int indexOf = getPath().indexOf(GoogleDB.FILE_SEPARATOR);
-			String parentPath = indexOf == -1 ? "" : getPath().substring(0,
-					indexOf);
-			GDriveFile parentFile = (GDriveFile) googleStore
-					.getFileByPath(parentPath);
-			if (parentFile == null) {
-				throw new IllegalArgumentException(
-						"No se puede subir el fichero porque no tiene padre conocido");
-
-			}
-			this.setParentId(parentFile.getId());
-			this.setDirectory(srcFile.isDirectory());
-			this.setLastModified(srcFile.getLastModified());
-			if (isDirectory()) {
-				return true;
-			}
-
-			transferFile = File.createTempFile("gdrive-synch-", ".upload");
-			return transferFile != null && transferFile.exists();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			throw new RuntimeException(e);
-		}
-	}
+//	protected boolean preCopyTgt(GDriveFile srcFile) {
+//		try {
+//			int indexOf = getPath().indexOf(GoogleDB.FILE_SEPARATOR);
+//			String parentPath = indexOf == -1 ? "" : getPath().substring(0,
+//					indexOf);
+//			GDriveFile parentFile = (GDriveFile) googleStore
+//					.getFileByPath(parentPath);
+//			if (parentFile == null) {
+//				throw new IllegalArgumentException(
+//						"No se puede subir el fichero porque no tiene padre conocido");
+//
+//			}
+//			this.setParentId(parentFile.getId());
+//			this.setDirectory(srcFile.isDirectory());
+//			this.setLastModified(srcFile.getLastModified());
+//			if (isDirectory()) {
+//				return true;
+//			}
+//
+//			transferFile = File.createTempFile("gdrive-synch-", ".upload");
+//			return transferFile != null && transferFile.exists();
+//		} catch (IOException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//			throw new RuntimeException(e);
+//		}
+//	}
 
 	/**
 	 * @see JFSFile#postCopySrc(JFSFile)

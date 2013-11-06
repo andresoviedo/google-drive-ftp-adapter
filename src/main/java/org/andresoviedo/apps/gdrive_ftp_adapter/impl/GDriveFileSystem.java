@@ -1,9 +1,9 @@
 package org.andresoviedo.apps.gdrive_ftp_adapter.impl;
 
-import java.io.File;
-
 import org.andresoviedo.apps.gdrive_ftp_adapter.GDriveFile;
-import org.andresoviedo.apps.gdrive_ftp_adapter.GoogleDB;
+import org.andresoviedo.apps.gdrive_ftp_adapter.db.GoogleDB;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.ftpserver.ftplet.FileSystemFactory;
 import org.apache.ftpserver.ftplet.FileSystemView;
 import org.apache.ftpserver.ftplet.FtpException;
@@ -11,6 +11,8 @@ import org.apache.ftpserver.ftplet.FtpFile;
 import org.apache.ftpserver.ftplet.User;
 
 public class GDriveFileSystem implements FileSystemFactory, FileSystemView {
+
+	private static Log logger = LogFactory.getLog(GDriveFileSystem.class);
 
 	private GoogleDB googleStore = GoogleDB.getInstance();
 
@@ -52,11 +54,11 @@ public class GDriveFileSystem implements FileSystemFactory, FileSystemView {
 	@Override
 	public FtpFile getFile(String file) throws FtpException {
 		try {
-			FtpFile fileByPath = googleStore.getFileByPath(currentPath
-					.getPath() + GoogleDB.FILE_SEPARATOR + file);
+			String childFile = currentPath.getPath().length() > 0 ? currentPath
+					.getPath() + GoogleDB.FILE_SEPARATOR + file : file;
+			FtpFile fileByPath = googleStore.getFileByPath(childFile);
 			if (fileByPath == null) {
-				fileByPath = new GDriveFile(currentPath.getPath()
-						+ GoogleDB.FILE_SEPARATOR + file);
+				fileByPath = new GDriveFile(childFile);
 				((GDriveFile) fileByPath).setExists(false);
 			}
 			return fileByPath;

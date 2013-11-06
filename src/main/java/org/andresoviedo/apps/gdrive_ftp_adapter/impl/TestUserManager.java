@@ -2,6 +2,8 @@ package org.andresoviedo.apps.gdrive_ftp_adapter.impl;
 
 import java.util.Arrays;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.ftpserver.ftplet.Authentication;
 import org.apache.ftpserver.ftplet.AuthenticationFailedException;
 import org.apache.ftpserver.ftplet.Authority;
@@ -15,6 +17,8 @@ import org.apache.ftpserver.usermanager.impl.BaseUser;
 import org.apache.ftpserver.usermanager.impl.ConcurrentLoginPermission;
 
 class TestUserManager extends AbstractUserManager {
+
+	private static Log logger = LogFactory.getLog(TestUserManager.class);
 	private BaseUser testUser;
 	private BaseUser anonUser;
 
@@ -58,7 +62,7 @@ class TestUserManager extends AbstractUserManager {
 	@Override
 	public void save(User user) throws FtpException {
 		// no opt
-		System.out.println("save");
+		logger.info("save");
 	}
 
 	@Override
