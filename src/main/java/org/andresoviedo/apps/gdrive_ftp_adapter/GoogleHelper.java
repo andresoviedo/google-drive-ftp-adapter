@@ -7,12 +7,11 @@ import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.andresoviedo.apps.gdrive_ftp_adapter.db.GoogleDB;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -27,7 +26,6 @@ import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.FileContent;
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpResponse;
-import com.google.api.client.http.HttpResponseException;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
@@ -37,14 +35,12 @@ import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.Drive.Changes;
 import com.google.api.services.drive.Drive.Files;
-import com.google.api.services.drive.Drive.Properties;
 import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.Change;
 import com.google.api.services.drive.model.ChangeList;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.FileList;
 import com.google.api.services.drive.model.ParentReference;
-import com.google.api.services.drive.model.Property;
 
 /**
  * TEMAS POR RESOLVER:
@@ -181,14 +177,14 @@ public class GoogleHelper {
 				new LocalServerReceiver()).authorize("user");
 	}
 
-	public List<GDriveFile> list(String rootPath, String folderId) {
+	public List<GDriveFile> list(String folderId) {
 		List<GDriveFile> ret = null;
 		List<com.google.api.services.drive.model.File> googleFiles = requestList(folderId);
 		if (googleFiles != null) {
 			List<GDriveFile> children = new ArrayList<GDriveFile>(
 					googleFiles.size());
 			for (File googleFile : googleFiles) {
-				children.add(createJFSGDriveFile(rootPath, googleFile));
+				children.add(createGDriveFile(googleFile));
 			}
 			ret = children;
 		}
@@ -200,27 +196,29 @@ public class GoogleHelper {
 		GDriveFile ret = null;
 		File googleFile = requestFileByName(idFolder, filename, 3);
 		if (googleFile != null) {
-			ret = createJFSGDriveFile(null, googleFile);
+			ret = createGDriveFile(googleFile);
 		}
 		return ret;
 
 	}
 
-	public GDriveFile createJFSGDriveFile(String rootPath, File googleFile) {
+	public GDriveFile createGDriveFile(File googleFile) {
 		GDriveFile jfsgFile = new GDriveFile();
 		String filename = getFilename(googleFile);
-		if (rootPath == null) {
-			logger.error("cuidado. rootPath nulo para " + googleFile);
-		}
-		String path = rootPath == null || rootPath.length() == 0 ? filename
-				: rootPath + GoogleDB.FILE_SEPARATOR + filename;
+		jfsgFile.setName(filename);
 		jfsgFile.setId(googleFile.getId());
-		jfsgFile.setRelativePath(path);
-		jfsgFile.setExists(exists(googleFile));
 		jfsgFile.setLastModified2(getLastModified(googleFile));
 		jfsgFile.setLength(getFileSize(googleFile));
 		jfsgFile.setDirectory(isDirectory(googleFile));
 		jfsgFile.setMd5Checksum(googleFile.getMd5Checksum());
+		jfsgFile.setParents(new HashSet<String>());
+		for (ParentReference ref : googleFile.getParents()) {
+			if (ref.getIsRoot()) {
+				jfsgFile.getParents().add("root");
+			} else {
+				jfsgFile.getParents().add(ref.getId());
+			}
+		}
 		return jfsgFile;
 	}
 
@@ -302,7 +300,8 @@ public class GoogleHelper {
 
 			do {
 				if (Thread.currentThread().isInterrupted()) {
-					break;
+					throw new InterruptedException(
+							"Interrupted before fetching file metadata");
 				}
 
 				FileList files = request.execute();
@@ -392,66 +391,6 @@ public class GoogleHelper {
 		return filename;
 	}
 
-	/**
-	 * Check if a file is in a specific folder
-	 * 
-	 * @param service
-	 *            Drive API service instance.
-	 * @param folderId
-	 *            ID of the folder.
-	 * @param fileId
-	 *            ID of the file.
-	 * @return Whether or not the file is in the folder.
-	 */
-	private boolean isFileInFolder(String folderId, String fileId) {
-		try {
-			logger.info("isFileInFolder(" + folderId + "," + fileId + ")");
-			drive.children().get(folderId, fileId).execute();
-		} catch (HttpResponseException e) {
-			if (e.getStatusCode() == 404) {
-				return false;
-			} else {
-				logger.info("An error occurred: " + e);
-				e.printStackTrace();
-				throw new RuntimeException(e);
-			}
-		} catch (IOException e) {
-			logger.info("An error occurred: " + e);
-			e.printStackTrace();
-			throw new RuntimeException(e);
-		}
-		return true;
-	}
-
-	/**
-	 * Print information about the specified custom property.
-	 * 
-	 * @param service
-	 *            Drive API service instance.
-	 * @param fileId
-	 *            ID of the file to print property for.
-	 * @param key
-	 *            ID of the property to print.
-	 * @param visibility
-	 *            The type of property ('PUBLIC' or 'PRIVATE').
-	 */
-	private String getProperty(String fileId, String key, String visibility) {
-		try {
-			logger.info("request getProperty...");
-			Properties.Get request = drive.properties().get(fileId, key);
-			request.setVisibility(visibility);
-			Property property = request.execute();
-
-			logger.info("Key: " + property.getKey());
-			logger.info("Value: " + property.getValue());
-			logger.info("Visibility: " + property.getVisibility());
-			return property.getValue();
-		} catch (IOException ex) {
-			logger.info("An error occured: " + ex);
-			throw new RuntimeException(ex);
-		}
-	}
-
 	private void updateDownloadUrl(GDriveFile jfsgDriveFile)
 			throws MalformedURLException {
 		// get download URL
@@ -486,11 +425,6 @@ public class GoogleHelper {
 
 	}
 
-	private boolean exists(File googleFile) {
-		// return isFileInFolder(googleFile.getParents(), getName());
-		return true;
-	}
-
 	/**
 	 * Download a file's content.
 	 * 
@@ -500,7 +434,7 @@ public class GoogleHelper {
 	 *         otherwise.
 	 */
 	java.io.File downloadFile(GDriveFile jfsgDriveFile) {
-		logger.info("Downloading file '" + jfsgDriveFile.getPath() + "'...");
+		logger.info("Downloading file '" + jfsgDriveFile.getName() + "'...");
 
 		java.io.File ret = null;
 
@@ -564,17 +498,15 @@ public class GoogleHelper {
 			body.setMimeType("application/vnd.google-apps.folder");
 		}
 		// TODO: y si hay más de un padre?
-		String parentId = jfsgFile.getParentId();
-		if (parentId == null) {
-			String parentFolder = jfsgFile.getPath().equals("") ? "root"
-					: jfsgFile.getPath()
-							.substring(
-									0,
-									jfsgFile.getPath().indexOf(
-											GoogleDB.FILE_SEPARATOR));
-			parentId = mkdirs(parentFolder);
+		Set<String> parents = jfsgFile.getParents();
+		List<ParentReference> refs = new ArrayList<ParentReference>();
+		for (String parent : parents) {
+			refs.add(new ParentReference().setId(parent));
 		}
-		body.setParents(Arrays.asList(new ParentReference().setId(parentId)));
+
+		// TODO: soportamos mkdirs()?
+
+		body.setParents(refs);
 
 		try {
 			File file = null;
@@ -702,21 +634,21 @@ public class GoogleHelper {
 
 	}
 
-	public void patchFile(GDriveFile localFile, File file) {
-		int idx = localFile.getPath().indexOf(GoogleDB.FILE_SEPARATOR);
-		String newPath = getFilename(file);
-		if (idx != -1) {
-			newPath = localFile.getPath().substring(0, idx + 1) + newPath;
-		}
-		localFile.setRelativePath(newPath);
-		localFile.setLength(getFileSize(file));
-		localFile.setLastModified2(getLastModified(file));
-		localFile.setMd5Checksum(file.getMd5Checksum());
-
-	}
+	// void patchFile(GDriveFile localFile, File file) {
+	// int idx = localFile.getPath().indexOf(GDriveFile.FILE_SEPARATOR);
+	// String newPath = getFilename(file);
+	// if (idx != -1) {
+	// newPath = localFile.getPath().substring(0, idx + 1) + newPath;
+	// }
+	// localFile.setPath(newPath);
+	// localFile.setLength(getFileSize(file));
+	// localFile.setLastModified2(getLastModified(file));
+	// localFile.setMd5Checksum(file.getMd5Checksum());
+	//
+	// }
 
 	public String mkdirs(String path) {
-		String[] paths = path.split(GoogleDB.FILE_SEPARATOR);
+		String[] paths = path.split(GDriveFile.FILE_SEPARATOR);
 		String lastParentId = "root";
 		for (String subpath : paths) {
 			GDriveFile dir = getFileByName(lastParentId, subpath);
@@ -733,7 +665,8 @@ public class GoogleHelper {
 	}
 
 	private File mkdir(String parentId, String filename) {
-		GDriveFile jfsgFile = new GDriveFile(parentId, filename);
+		GDriveFile jfsgFile = new GDriveFile(Collections.singleton(parentId),
+				filename);
 		jfsgFile.setDirectory(true);
 		return uploadFile(jfsgFile);
 	}

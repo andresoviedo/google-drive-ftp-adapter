@@ -3,9 +3,7 @@ package org.andresoviedo.apps.gdrive_ftp_adapter.db;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -17,7 +15,6 @@ import org.apache.ftpserver.ftplet.FtpFile;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.util.StringUtils;
 
 /**
  * TODO:
@@ -29,15 +26,11 @@ import org.springframework.util.StringUtils;
  */
 public final class GoogleDB {
 
-	private static final String DUPLICATED_FILE_TOKEN = "__DUPLICATED__";
-
 	private static Log logger = LogFactory.getLog(GoogleDB.class);
 
 	private static final String TABLE_FILES = "files";
 
 	private static final String TABLE_CHILDS = "childs";
-
-	public static final String FILE_SEPARATOR = "/";
 
 	private static GoogleDB instance;
 
@@ -48,6 +41,8 @@ public final class GoogleDB {
 	private final ReentrantReadWriteLock rwl = new ReentrantReadWriteLock();
 	private final Lock r = rwl.readLock();
 	private final Lock w = rwl.writeLock();
+
+	private BasicDataSource dataSource;
 
 	private GoogleDB() {
 		instance = this;
@@ -63,68 +58,9 @@ public final class GoogleDB {
 
 	private void init() {
 		try {
-			BasicDataSource dataSource = new BasicDataSource();
-			dataSource.setDriverClassName("org.sqlite.JDBC");
-			dataSource.setUrl("jdbc:sqlite:gdrive.db");
-			// dataSource.setMaxActive(1);
-			dataSource.setMaxWait(60000);
+			initDAO();
 
-			jdbcTemplate = new JdbcTemplate(dataSource);
-
-			rowMapper = new RowMapper<FtpFile>() {
-				@Override
-				public FtpFile mapRow(ResultSet rs, int rowNum)
-						throws SQLException {
-					GDriveFile ret = new GDriveFile();
-					ret.setId(rs.getString("id"));
-					ret.setParentId(rs.getString("parentId"));
-					ret.setRelativePath(rs.getString("path"));
-					ret.setLargestChangeId(rs.getLong("largestChangeId"));
-					ret.setDirectory(rs.getBoolean("isDirectory"));
-					ret.setLength(rs.getLong("length"));
-					ret.setLastModified2(rs.getLong("lastModified"));
-					ret.setMd5Checksum(rs.getString("md5Checksum"));
-					ret.setExists(true);
-					return ret;
-				}
-			};
-
-			Integer ret = jdbcTemplate.queryForObject(
-					"SELECT count(*) FROM sqlite_master WHERE type='table' AND name='"
-							+ TABLE_FILES + "';", Integer.class);
-			if (ret == 0) {
-				// jdbcTemplate
-				// .execute("CREATE TABLE "
-				// + TABLE_FILES
-				// +
-				// " (id text primary key, parentId text, largestChangeId integer, path text not null unique, "
-				// + "isDirectory boolean, length integer, "
-				// + "lastModified integer, md5Checksum integer)");
-				jdbcTemplate
-						.execute("create table "
-								+ TABLE_FILES
-								+ " (id text, largestChangeId integer, "
-								+ "path text not null, isDirectory boolean, length integer, lastModified integer, "
-								+ "md5Checksum text, primary key (id))");
-				jdbcTemplate.execute("create index idx_path on gdrive (path)");
-
-				logger.info("Database " + TABLE_FILES + " initialized");
-			}
-
-			ret = jdbcTemplate.queryForObject(
-					"SELECT count(*) FROM sqlite_master WHERE type='table' AND name='"
-							+ TABLE_CHILDS + "';", Integer.class);
-			if (ret == 0) {
-				jdbcTemplate
-						.execute("create table "
-								+ TABLE_CHILDS
-								+ " (id integer autoincrement, childId text references "
-								+ TABLE_FILES
-								+ "(id), parentId text references "
-								+ TABLE_FILES + "(id), primary key (id))");
-
-				logger.info("Database " + TABLE_CHILDS + " initialized");
-			}
+			initDatabase();
 
 			// jdbcTemplate.execute(".timeout 10000");
 
@@ -133,14 +69,67 @@ public final class GoogleDB {
 		}
 	}
 
+	private void initDAO() {
+		dataSource = new BasicDataSource();
+		dataSource.setDriverClassName("org.sqlite.JDBC");
+		dataSource.setUrl("jdbc:sqlite:gdrive.db");
+		// dataSource.setMaxActive(1);
+		dataSource.setMaxWait(60000);
+
+		jdbcTemplate = new JdbcTemplate(dataSource);
+
+		rowMapper = new RowMapper<FtpFile>() {
+			@Override
+			public FtpFile mapRow(ResultSet rs, int rowNum) throws SQLException {
+				GDriveFile ret = new GDriveFile();
+				ret.setId(rs.getString("id"));
+				// TODO: hace falta informar los parents aqui?
+				// ret.setParentId(rs.getString("parentId"));
+				ret.setName(rs.getString("filename"));
+				ret.setLargestChangeId(rs.getLong("largestChangeId"));
+				ret.setDirectory(rs.getBoolean("isDirectory"));
+				ret.setLength(rs.getLong("length"));
+				ret.setLastModified2(rs.getLong("lastModified"));
+				ret.setMd5Checksum(rs.getString("md5Checksum"));
+				return ret;
+			}
+		};
+	}
+
+	private void initDatabase() throws SQLException {
+
+		Integer ret = jdbcTemplate.queryForObject(
+				"SELECT count(*) FROM sqlite_master WHERE type='table' AND name='"
+						+ TABLE_FILES + "';", Integer.class);
+		if (ret == 0) {
+			List<String> queries = new ArrayList<String>();
+			queries.add("create table "
+					+ TABLE_FILES
+					+ " (id text, largestChangeId integer, "
+					+ "filename text not null, isDirectory boolean, length integer, lastModified integer, "
+					+ "md5Checksum text, primary key (id))");
+			queries.add("create table " + TABLE_CHILDS
+					+ " (id integer primary key, childId text references "
+					+ TABLE_FILES + "(id), parentId text references "
+					+ TABLE_FILES + "(id), unique (childId, parentId))");
+			queries.add("create index idx_filename on " + TABLE_FILES
+					+ " (filename)");
+			jdbcTemplate
+					.batchUpdate(queries.toArray(new String[queries.size()]));
+
+			logger.info("Database created");
+		} else {
+			logger.info("Database found");
+		}
+	}
+
 	public GDriveFile getFile(String id) {
 		r.lock();
 		try {
-			// logger.info("queryFile(" + id + ")");
-			final GDriveFile file = (GDriveFile) jdbcTemplate.queryForObject(
+			logger.trace("getFile(" + id + ")");
+			GDriveFile file = (GDriveFile) jdbcTemplate.queryForObject(
 					"select * from " + TABLE_FILES + " where id=?",
 					new Object[] { id }, rowMapper);
-			file.setExists(true);
 			return file;
 		} catch (EmptyResultDataAccessException ex) {
 			return null;
@@ -149,71 +138,89 @@ public final class GoogleDB {
 		}
 	}
 
-	public void addFile(GDriveFile file) {
+	void addFile(GDriveFile file) {
+		List<String> queries = new ArrayList<String>();
+		List<Object[]> args = new ArrayList<Object[]>();
+		queries.add("insert into "
+				+ TABLE_FILES
+				+ " (id,largestChangeId,filename,isDirectory,length,lastModified,md5checksum)"
+				+ " values(?,?,?,?,?,?,?)");
+		args.add(new Object[] { file.getId(), file.getLargestChangeId(),
+				file.getName(), file.isDirectory(), file.getLength(),
+				file.getLastModified(), file.getMd5Checksum() });
+
+		updateChilds(file, queries, args);
+
+		executeInTransaction(queries, args);
+	}
+
+	void addFile(GDriveFile file, List<String> queries, List<Object[]> args) {
+		queries.add("insert into "
+				+ TABLE_FILES
+				+ " (id,largestChangeId,filename,isDirectory,length,lastModified,md5checksum)"
+				+ " values(?,?,?,?,?,?,?)");
+		args.add(new Object[] { file.getId(), file.getLargestChangeId(),
+				file.getName(), file.isDirectory(), file.getLength(),
+				file.getLastModified(), file.getMd5Checksum() });
+	}
+
+	private void updateChilds(GDriveFile file, List<String> queries,
+			List<Object[]> args) {
+		queries.add("delete from " + TABLE_CHILDS + " where childId=?");
+		args.add(new Object[] { file.getId() });
+		for (String parent : file.getParents()) {
+			queries.add("insert into " + TABLE_CHILDS
+					+ " (childId,parentId) values(?,?)");
+			args.add(new Object[] { file.getId(), parent });
+		}
+	}
+
+	private void executeInTransaction(List<String> queries, List<Object[]> args) {
 		w.lock();
 		try {
-			jdbcTemplate
-					.update("insert into "
-							+ TABLE_FILES
-							+ " (id,largestChangeId,path,isDirectory,length,lastModified,md5checksum)"
-							+ " values(?,?,?,?,?,?,?)",
-							new Object[] { file.getId(),
-									file.getLargestChangeId(), file.getPath(),
-									file.isDirectory(), file.getLength(),
-									file.getLastModified(),
-									file.getMd5Checksum() });
+			// dataSource.getConnection().setAutoCommit(false);
+			for (int i = 0; i < queries.size(); i++) {
+				jdbcTemplate.update(queries.get(i), args.get(i));
+			}
+			// dataSource.getConnection().commit();
+			// } catch (SQLException e) {
+			// try {
+			// dataSource.getConnection().rollback();
+			// } catch (SQLException e1) {
+			// throw new RuntimeException(e1.getMessage(), e1);
+			// }
+			// throw new RuntimeException(e);
 		} finally {
 			w.unlock();
 		}
 	}
 
-	public void updateFile(GDriveFile file) {
-		w.lock();
-		try {
-			jdbcTemplate
-					.update("update "
-							+ TABLE_FILES
-							+ " set parentId=?,largestChangeId=?,path=?,isDirectory=?,length=?,lastModified=?,md5checksum=? where id=?",
-							new Object[] { file.getParentId(),
-									file.getLargestChangeId(), file.getPath(),
-									file.isDirectory(), file.getLength(),
-									file.getLastModified(),
-									file.getMd5Checksum(), file.getId() });
-			jdbcTemplate
-					.update("insert or replace "
-							+ TABLE_CHILDS
-							+ " set id=?,largestChangeId=?,path=?,isDirectory=?,length=?,lastModified=?,md5checksum=? where id=?",
-							new Object[] { file.getParentId(),
-									file.getLargestChangeId(), file.getPath(),
-									file.isDirectory(), file.getLength(),
-									file.getLastModified(),
-									file.getMd5Checksum(), file.getId() });
-		} finally {
-			w.unlock();
-		}
+	void updateFile(GDriveFile file, GDriveFile patch) {
+
+		List<String> queries = new ArrayList<String>();
+		List<Object[]> args = new ArrayList<Object[]>();
+
+		queries.add("update "
+				+ TABLE_FILES
+				+ " set largestChangeId=?,filename=?,isDirectory=?,length=?,lastModified=?,md5checksum=? where id=?");
+		args.add(new Object[] { patch.getLargestChangeId(), patch.getName(),
+				patch.isDirectory(), patch.getLength(),
+				patch.getLastModified(), patch.getMd5Checksum(), patch.getId() });
+
+		updateChilds(patch, queries, args);
+
+		executeInTransaction(queries, args);
 	}
 
 	void addFiles(List<GDriveFile> files) {
-		w.lock();
-		try {
-			List<Object[]> args = new ArrayList<Object[]>();
-			for (GDriveFile file : files) {
-				args.add(new Object[] { file.getId(), file.getParentId(),
-						file.getLargestChangeId(), file.getPath(),
-						file.isDirectory(), file.getLength(),
-						file.getLastModified(), file.getMd5Checksum() });
-			}
-
-			// TODO: return number of affected row
-			jdbcTemplate
-					.batchUpdate(
-							"insert or replace into "
-									+ TABLE_FILES
-									+ " (id,parentId,largestChangeId,path,isDirectory,length,lastModified,md5checksum)"
-									+ " values(?,?,?,?,?,?,?,?)", args);
-		} finally {
-			w.unlock();
+		List<String> queries = new ArrayList<String>();
+		List<Object[]> args = new ArrayList<Object[]>();
+		for (GDriveFile file : files) {
+			addFile(file, queries, args);
+			updateChilds(file, queries, args);
 		}
+
+		executeInTransaction(queries, args);
 	}
 
 	// TODO:
@@ -222,37 +229,18 @@ public final class GoogleDB {
 	public List<FtpFile> getFiles(String parentId) {
 		r.lock();
 		try {
-			final List<FtpFile> query = jdbcTemplate.query("select * from "
-					+ TABLE_FILES + " where parentId=?",
+			final List<FtpFile> query = jdbcTemplate.query("select "
+					+ TABLE_FILES + ".* from " + TABLE_FILES + ","
+					+ TABLE_CHILDS + " where " + TABLE_CHILDS + ".childId="
+					+ TABLE_FILES + ".id and " + TABLE_CHILDS + ".parentId=?",
 					new Object[] { parentId }, rowMapper);
-
-			// interceptar para "codificar" los ficheros duplicados
-			Map<String, GDriveFile> nonDuplicatedNames = new HashMap<String, GDriveFile>(
-					query.size());
-			for (FtpFile file : query) {
-				final GDriveFile file2 = (GDriveFile) file;
-				if (nonDuplicatedNames.containsKey(file2.getPath())) {
-					GDriveFile file3 = nonDuplicatedNames.get(file2.getPath());
-					file3.setRelativePath(file3.getPath()
-							+ DUPLICATED_FILE_TOKEN + file3.getId());
-					final String encodedName = file2.getPath()
-							+ DUPLICATED_FILE_TOKEN + file2.getId();
-					logger.debug("Detected duplicated file '" + encodedName
-							+ "'");
-					// assert nonDuplicatedNames.contains(encodedName);
-					file2.setRelativePath(encodedName);
-					nonDuplicatedNames.put(encodedName, file2);
-				} else {
-					nonDuplicatedNames.put(file2.getPath(), file2);
-				}
-			}
 			return query;
 		} finally {
 			r.unlock();
 		}
 	}
 
-	public List<String> getAllFolderIdsByChangeId(long largestChangedId) {
+	List<String> getAllFolderIdsByChangeId(long largestChangedId) {
 		r.lock();
 		try {
 			if (largestChangedId != -1) {
@@ -269,97 +257,25 @@ public final class GoogleDB {
 		}
 	}
 
-	public FtpFile getFileByPath(String path) {
-		try {
-			// TODO: revisar esta caca
-			String normalizedPath = path.startsWith("/")
-					|| path.startsWith("\\") ? path.substring(1) : path;
-			if (normalizedPath.endsWith("./")) {
-				normalizedPath = normalizedPath.substring(0,
-						normalizedPath.length() - 2);
-			}
-			if (normalizedPath.endsWith("/")) {
-				normalizedPath = normalizedPath.substring(0,
-						normalizedPath.length() - 1);
-			}
-			logger.debug("Searching file: '" + normalizedPath + "'...");
-
-			// Normal case
-			if (StringUtils.countOccurrencesOf(normalizedPath,
-					GoogleDB.DUPLICATED_FILE_TOKEN) == 0) {
-				r.lock();
-				try {
-					return jdbcTemplate.queryForObject("select * from "
-							+ TABLE_FILES + " where path=?",
-							new Object[] { normalizedPath }, rowMapper);
-				} finally {
-					r.unlock();
-				}
-
-			}
-
-			GDriveFile lastKnownFile = null;
-			String pendingPathToResolve = normalizedPath;
-			for (int i = 0; i < StringUtils.countOccurrencesOf(normalizedPath,
-					GoogleDB.DUPLICATED_FILE_TOKEN); i++) {
-
-				int nextIdx = pendingPathToResolve
-						.indexOf(GoogleDB.DUPLICATED_FILE_TOKEN);
-				int idIdx = pendingPathToResolve.indexOf('/', nextIdx) != -1 ? pendingPathToResolve
-						.indexOf('/', nextIdx) : pendingPathToResolve.length();
-				String currentPathToResolve = pendingPathToResolve.substring(0,
-						nextIdx);
-				String idToken = pendingPathToResolve.substring(nextIdx
-						+ GoogleDB.DUPLICATED_FILE_TOKEN.length(), idIdx);
-
-				logger.info("Searching part: '" + pendingPathToResolve
-						+ "'==>'" + currentPathToResolve + "':'" + idToken
-						+ "'...");
-				r.lock();
-				try {
-					lastKnownFile = (GDriveFile) jdbcTemplate.queryForObject(
-							"select * from " + TABLE_FILES
-									+ " where path=? and id=?", new Object[] {
-									currentPathToResolve, idToken }, rowMapper);
-				} finally {
-					r.unlock();
-				}
-				pendingPathToResolve = pendingPathToResolve.substring(idIdx);
-				if (pendingPathToResolve.startsWith("/")) {
-					pendingPathToResolve = pendingPathToResolve.substring(1);
-				}
-			}
-			if (pendingPathToResolve.length() > 0) {
-				String[] pathsToResolve = pendingPathToResolve.split("/");
-				for (String pathToResolve : pathsToResolve) {
-					lastKnownFile = getChild(lastKnownFile, pathToResolve);
-				}
-			}
-
-			if (lastKnownFile != null) {
-				lastKnownFile.setRelativePath(path);
-			}
-			return lastKnownFile;
-		} catch (EmptyResultDataAccessException e) {
-			return null;
-		}
-	}
-
-	private GDriveFile getChild(GDriveFile parent, String path) {
+	public GDriveFile getFileByName(String parentId, String filename) {
 		r.lock();
 		try {
-			GDriveFile ret = (GDriveFile) jdbcTemplate.queryForObject(
-					"select * from " + TABLE_FILES
-							+ " where path=? and parentId=?", new Object[] {
-							parent.getPath() + GoogleDB.FILE_SEPARATOR + path,
-							parent.getId() }, rowMapper);
-			return ret;
+			final GDriveFile query = (GDriveFile) jdbcTemplate.queryForObject(
+					"select " + TABLE_FILES + ".* from " + TABLE_CHILDS + ","
+							+ TABLE_FILES + " where " + TABLE_CHILDS
+							+ ".childId=" + TABLE_FILES + ".id and "
+							+ TABLE_CHILDS + ".parentId=? and " + TABLE_FILES
+							+ ".filename=?",
+					new Object[] { parentId, filename }, rowMapper);
+			return query;
+		} catch (EmptyResultDataAccessException ex) {
+			return null;
 		} finally {
 			r.unlock();
 		}
 	}
 
-	public void updateFileLargestChangeId(GDriveFile folderFile) {
+	void updateFileLargestChangeId(GDriveFile folderFile) {
 		w.lock();
 		try {
 			jdbcTemplate.update("update " + TABLE_FILES
@@ -370,35 +286,30 @@ public final class GoogleDB {
 		}
 	}
 
-	public int deleteFileByPath(String path) {
+	// public int deleteChilds(String folderId) {
+	// w.lock();
+	// try {
+	// // Intercept here to process duplicated file names
+	// return jdbcTemplate.update("delete from " + TABLE_CHILDS
+	// + " where parentId=?", new Object[] { folderId });
+	// } finally {
+	// w.unlock();
+	// }
+	//
+	// }
+
+	int deleteFile(String id) {
 		w.lock();
 		try {
-			if (path.contains("%")) {
-				// cuidado con el sql injection!
-				throw new IllegalArgumentException("path '" + path
-						+ "' is not a valid path");
-			}
-
-			// Intercept here to process duplicated file names
-			String realPath = path;
-			String maybeTheId = null;
-			if (path.indexOf(GoogleDB.DUPLICATED_FILE_TOKEN) != -1) {
-				String[] parts = path.split(GoogleDB.DUPLICATED_FILE_TOKEN);
-				path = parts[0];
-				maybeTheId = parts[1];
-				logger.info("Deleting real file: '" + maybeTheId + "':'" + path
-						+ "'...");
-			}
-
 			return jdbcTemplate.update("delete from " + TABLE_FILES
-					+ " where path like ?", new Object[] { realPath + "%" });
+					+ " where id=?", new Object[] { id });
 		} finally {
 			w.unlock();
 		}
 
 	}
 
-	public long getLargestChangeId() {
+	long getLargestChangeId() {
 		r.lock();
 		try {
 			return jdbcTemplate.queryForObject(
@@ -409,7 +320,7 @@ public final class GoogleDB {
 		}
 	}
 
-	public long getLowerChangedId() {
+	long getLowerChangedId() {
 		r.lock();
 		try {
 

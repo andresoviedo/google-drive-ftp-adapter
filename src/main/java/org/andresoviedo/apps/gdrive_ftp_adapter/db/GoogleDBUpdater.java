@@ -1,8 +1,10 @@
 package org.andresoviedo.apps.gdrive_ftp_adapter.db;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.Callable;
@@ -59,6 +61,7 @@ public class GoogleDBUpdater {
 			rootFile = new GDriveFile("");
 			rootFile.setId("root");
 			rootFile.setDirectory(true);
+			rootFile.setParents(new HashSet<String>());
 			googleStore.addFile(rootFile);
 		}
 	}
@@ -121,7 +124,8 @@ public class GoogleDBUpdater {
 									.iterator(); it.hasNext();) {
 								Future<Boolean> future = it.next();
 								if (future.isDone()) {
-									logger.info("Task result: " + future.get());
+									// logger.info("Task result: " +
+									// future.get());
 									it.remove();
 								}
 							}
@@ -152,62 +156,54 @@ public class GoogleDBUpdater {
 								|| change.getFile().getLabels().getTrashed()) {
 							if (localFile != null) {
 								int deletedFiles = googleStore
-										.deleteFileByPath(localFile.getPath());
+										.deleteFile(localFile.getId());
 								logger.info("deleted files " + deletedFiles);
 							}
 							continue;
 						}
 
 						File changeFile = change.getFile();
+						Set<String> parents = new HashSet<String>();
+						for (ParentReference parentReference : changeFile
+								.getParents()) {
+							parents.add(parentReference.getId());
+						}
 
 						if (localFile == null) {
-							for (ParentReference parentReference : changeFile
-									.getParents()) {
-								GDriveFile localParentFile = googleStore
-										.getFile(parentReference.getIsRoot() ? "root"
-												: parentReference.getId());
 
-								// TODO: arreglar el path
-								GDriveFile newLocalFile = googleHelper
-										.createJFSGDriveFile(
-												localParentFile != null ? localParentFile
-														.getPath()
-														: "__PATH_UNKNOWN__"
-																+ GoogleDB.FILE_SEPARATOR
-																+ changeFile
-																		.getId(),
-												changeFile);
-								newLocalFile.setParentId(localParentFile
-										.getId());
-								if (!newLocalFile.isDirectory()) {
-									newLocalFile.setLargestChangeId(change
-											.getId());
-								} else {
-									// si es un directorio no marcamos para que
-									// se
-									// sincronize luego
-								}
-
-								logger.info("New file " + newLocalFile);
-								googleStore.addFile(newLocalFile);
+							// TODO: arreglar el path
+							GDriveFile newLocalFile = googleHelper
+									.createGDriveFile(changeFile);
+							if (!newLocalFile.isDirectory()) {
+								newLocalFile.setLargestChangeId(change.getId());
+							} else {
+								// si es un directorio no marcamos para que
+								// se
+								// sincronize luego
 							}
-						} else if (localFile.getLargestChangeId() > change
-								.getId()) {
+
+							logger.info("New file " + newLocalFile);
+							googleStore.addFile(newLocalFile);
+
+						} else if (change.getId() > localFile
+								.getLargestChangeId()) {
 							// File updated
 							// renamed file?
 							logger.info("Updating file " + localFile);
-							googleHelper.patchFile(localFile, change.getFile());
-							localFile.setLargestChangeId(change.getId());
-							googleStore.updateFile(localFile);
+							GDriveFile patchedLocalFile = googleHelper
+									.createGDriveFile(change.getFile());
+							patchedLocalFile.setLargestChangeId(change.getId());
+							googleStore.updateFile(localFile, patchedLocalFile);
 						} else {
 							logger.error("Processing ununderstood change :(");
 							logger.error("Updating file " + localFile);
-							googleHelper.patchFile(localFile, change.getFile());
-							localFile.setLargestChangeId(change.getId());
-							googleStore.updateFile(localFile);
+							GDriveFile patchedLocalFile = googleHelper
+									.createGDriveFile(change.getFile());
+							patchedLocalFile.setLargestChangeId(change.getId());
+							googleStore.updateFile(localFile, patchedLocalFile);
 						}
 					}
-				} catch (InterruptedException | ExecutionException e) {
+				} catch (InterruptedException e) {
 					logger.error(e.getMessage(), e);
 				}
 			}
@@ -220,6 +216,8 @@ public class GoogleDBUpdater {
 			@Override
 			public Boolean call() {
 				try {
+					Thread.sleep(5000);
+
 					String threadName = "synch(" + folderId + ")";
 					// Thread.currentThread().setName(threadName);
 					logger.debug("Running " + threadName + "...");
@@ -231,14 +229,14 @@ public class GoogleDBUpdater {
 					}
 
 					if (!folderFile.isDirectory()) {
-						logger.error("local file [" + folderFile.getPath()
+						logger.error("local file [" + folderFile.getName()
 								+ "] is not directory. aborting synch...");
 						return false;
 					}
 
 					if (folderFile.getLargestChangeId() != 0) {
 						throw new IllegalArgumentException("Directory '"
-								+ folderFile.getPath() + "' already synched");
+								+ folderFile.getName() + "' already synched");
 					}
 
 					int total = googleStore.getAllFolderIdsByChangeId(-1)
@@ -246,7 +244,7 @@ public class GoogleDBUpdater {
 					int totalPending = googleStore.getAllFolderIdsByChangeId(0)
 							.size();
 					logger.info("synchronizing (" + (total - totalPending)
-							+ " out of " + total + ") [" + folderFile.getPath()
+							+ " out of " + total + ") [" + folderFile.getName()
 							+ "]...");
 					// TODO: borrar basura que pueda haber quedado de
 					// ejecuciones
@@ -255,13 +253,13 @@ public class GoogleDBUpdater {
 							.getLargestChangeId();
 					long startLargestChangeId = googleHelper
 							.getLargestChangeId(localLargestChangeId);
-
-					List<GDriveFile> childs = googleHelper.list(
-							folderFile.getPath(), folderFile.getId());
-
-					if (Thread.currentThread().isInterrupted()) {
-						throw new InterruptedException("Interrupted ok");
+					if (startLargestChangeId == localLargestChangeId) {
+						logger.debug("folder '" + folderFile.getName()
+								+ "' already synchronized");
 					}
+
+					List<GDriveFile> childs = googleHelper.list(folderFile
+							.getId());
 
 					long endLargestChangeId = googleHelper
 							.getLargestChangeId(localLargestChangeId);
@@ -273,37 +271,39 @@ public class GoogleDBUpdater {
 						return false;
 					}
 
+					// no se ha producido ningún cambio en remoto desde
+					// que empezamos a preguntar por la lista
+					if (Thread.currentThread().isInterrupted()) {
+						throw new InterruptedException(
+								"Interrupted before processing changes to database!");
+					}
+
 					if (childs == null
 							&& googleStore.getFile(folderFile.getId()) != null) {
 						// deleted remotely
-						logger.info("Deleting '" + folderFile.getPath()
+						logger.info("Deleting '" + folderFile.getName()
 								+ "'...");
-						int affectedFiles = googleStore
-								.deleteFileByPath(folderFile.getPath());
+						int affectedFiles = googleStore.deleteFile(folderFile
+								.getId());
 						logger.info("deleted " + affectedFiles
 								+ " files from local store");
 						logger.error("good bye");
 						return true;
 					}
 
-					// no se ha producido ningún cambio en remoto desde
-					// que empezamos a preguntar por la lista
 					for (GDriveFile file : childs) {
-						file.setParentId(folderId);
 						if (file.isDirectory()) {
 							// // los sub-directorios quedan pendientes
 							// // para una
 							// // próxima sincronización
-							// logger.info("to synch later: "
-							// + file.getPath());
-							// synch(file.getPath(), file.getId());
 						} else {
 							// marcamos el fichero como sincronizado
 							file.setLargestChangeId(startLargestChangeId);
 						}
 					}
-					// marcamos el folder como sincronizado
 					googleStore.addFiles(childs);
+
+					// marcamos el folder como sincronizado
 					folderFile.setLargestChangeId(startLargestChangeId);
 					googleStore.updateFileLargestChangeId(folderFile);
 

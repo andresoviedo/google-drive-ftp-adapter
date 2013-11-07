@@ -22,7 +22,9 @@ public class GDriveFileSystem implements FileSystemFactory, FileSystemView {
 	}
 
 	public void init() {
-		currentPath = googleStore.getFile("root");
+		final GDriveFile file = googleStore.getFile("root");
+		file.setPath("");
+		currentPath = file;
 	}
 
 	@Override
@@ -34,7 +36,9 @@ public class GDriveFileSystem implements FileSystemFactory, FileSystemView {
 
 	@Override
 	public FtpFile getHomeDirectory() throws FtpException {
-		return googleStore.getFile("root");
+		final GDriveFile file = googleStore.getFile("root");
+		file.setPath("");
+		return file;
 	}
 
 	@Override
@@ -43,26 +47,92 @@ public class GDriveFileSystem implements FileSystemFactory, FileSystemView {
 	}
 
 	@Override
-	public boolean changeWorkingDirectory(String dir) throws FtpException {
-		GDriveFile subPath = (GDriveFile) googleStore.getFileByPath(dir);
-		if (subPath != null && subPath.isDirectory()) {
-			currentPath = subPath;
+	public boolean changeWorkingDirectory(String path) throws FtpException {
+
+		String normalizedPath = normalize(path);
+
+		logger.debug("Searching file: '" + normalizedPath + "'...");
+
+		GDriveFile lastKnownFile = getFileByPath(normalizedPath);
+
+		if (lastKnownFile != null && lastKnownFile.isDirectory()) {
+			currentPath = lastKnownFile;
 			return true;
+		} else {
+			return false;
 		}
-		return false;
+	}
+
+	private String normalize(String path) {
+		// TODO: revisar esta caca
+		while (path.startsWith("/") || path.startsWith("\\")
+				|| path.startsWith(".")) {
+			path = path.substring(1);
+		}
+		while (path.endsWith("/") || path.endsWith("\\") || path.endsWith(".")) {
+			path = path.substring(0, path.length() - 1);
+		}
+		return path;
+	}
+
+	private GDriveFile getFileByPath(String normalizedPath) {
+
+		normalizedPath = normalize(normalizedPath);
+
+		if (normalizedPath.equals("")) {
+			try {
+				return (GDriveFile) getHomeDirectory();
+			} catch (FtpException e) {
+				throw new RuntimeException(e);
+			}
+		}
+
+		GDriveFile lastKnownFile = googleStore.getFile("root");
+		lastKnownFile.setPath("");
+		for (String part : normalizedPath.split(GDriveFile.FILE_SEPARATOR)) {
+
+			int nextIdx = part.indexOf(GDriveFile.DUPLICATED_FILE_TOKEN);
+			if (nextIdx == -1) {
+				// caso normal
+				GDriveFile possiblySubdir = googleStore.getFileByName(
+						lastKnownFile.getId(), part);
+				if (possiblySubdir == null) {
+					throw new RuntimeException("Folder doesn't exist '"
+							+ lastKnownFile.getName() + "/" + part + "'");
+				}
+				lastKnownFile = possiblySubdir;
+				continue;
+			}
+
+			String[] filenameAndId = part
+					.split(GDriveFile.DUPLICATED_FILE_TOKEN);
+			logger.info("Searching path: '" + lastKnownFile.getPath() + "/"
+					+ filenameAndId[0] + "' ('" + filenameAndId[1] + "')...");
+			GDriveFile possiblySubdir = googleStore.getFileByName(
+					lastKnownFile.getId(), filenameAndId[1]);
+			if (possiblySubdir == null) {
+				throw new RuntimeException("Folder doesn't exist '"
+						+ lastKnownFile.getPath() + "/" + filenameAndId[0]
+						+ "'");
+			}
+			possiblySubdir
+					.setPath(lastKnownFile.getId().equals("root") ? lastKnownFile
+							.getName() : lastKnownFile.getPath()
+							+ GDriveFile.FILE_SEPARATOR
+							+ possiblySubdir.getName());
+			lastKnownFile = possiblySubdir;
+		}
+		if (lastKnownFile != null) {
+			lastKnownFile.setPath(normalizedPath);
+		}
+		return lastKnownFile;
 	}
 
 	@Override
 	public FtpFile getFile(String file) throws FtpException {
 		try {
-			String childFile = currentPath.getPath().length() > 0 ? currentPath
-					.getPath() + GoogleDB.FILE_SEPARATOR + file : file;
-			FtpFile fileByPath = googleStore.getFileByPath(childFile);
-			if (fileByPath == null) {
-				fileByPath = new GDriveFile(childFile);
-				((GDriveFile) fileByPath).setExists(false);
-			}
-			return fileByPath;
+			return getFileByPath(currentPath.getPath()
+					+ GDriveFile.FILE_SEPARATOR + file);
 		} catch (Exception e) {
 			e.printStackTrace();
 			return null;
