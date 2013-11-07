@@ -8,7 +8,6 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -44,7 +43,7 @@ public class GoogleDBUpdater {
 
 	private Timer timer;
 
-	private TimerTask currentSynchTask;
+	private TimerTask synchPeriodicTask;
 
 	private GoogleDBUpdater() {
 		instance = this;
@@ -77,63 +76,24 @@ public class GoogleDBUpdater {
 	 * Arranca la sincronización de la base de datos local con la de google
 	 */
 	public void start() {
-		currentSynchTask = reviewGoogleChanges();
-		timer.schedule(currentSynchTask, 0, 60000 * 10);
+		synchPeriodicTask = createSynchChangesTask();
+		timer.schedule(synchPeriodicTask, 0, 60000 * 10);
 	}
 
-	public void updateNow() {
-		logger.info("Waking up update task...");
-		currentSynchTask.cancel();
-		start();
+	public void updateNow(String fileId) {
+		synch(fileId);
 	}
 
 	public void stop() {
 		executor.shutdownNow();
 	}
 
-	private TimerTask reviewGoogleChanges() {
+	private TimerTask createSynchChangesTask() {
 		return new TimerTask() {
+
 			@Override
 			public void run() {
-				logger.info("Running update task...");
 				try {
-					// Yield to Controller
-					Thread.sleep(1000);
-
-					// always sync pending directories first
-					List<String> unsynchChilds = null;
-					while (!(unsynchChilds = googleStore
-							.getAllFolderIdsByChangeId(0)).isEmpty()) {
-						List<Callable<Boolean>> tasks = new ArrayList<Callable<Boolean>>();
-						for (String unsynchChild : unsynchChilds) {
-							logger.info("Creating synch task for "
-									+ unsynchChild + "...");
-							tasks.add(newSynchTask(unsynchChild));
-						}
-						logger.info("Executing " + tasks.size() + "...");
-						List<Future<Boolean>> futures = executor
-								.invokeAll(tasks);
-						logger.info("Waiting for all executions to finish...");
-						while (true) {
-							Thread.sleep(1000);
-							// wait all tasks to finish
-							if (futures.isEmpty()) {
-								break;
-							}
-							for (Iterator<Future<Boolean>> it = futures
-									.iterator(); it.hasNext();) {
-								Future<Boolean> future = it.next();
-								if (future.isDone()) {
-									// logger.info("Task result: " +
-									// future.get());
-									it.remove();
-								}
-							}
-						}
-						logger.info("All executions finished to run.  "
-								+ "Lets check again for any pending folders...");
-					}
-
 					// revisar lista de cambios de google
 					long largestChangeId = googleStore.getLargestChangeId();
 					logger.info("Largest changeId found in local database "
@@ -147,61 +107,115 @@ public class GoogleDBUpdater {
 					logger.info("Detected " + googleChanges.size() + " changes");
 
 					for (Change change : googleChanges) {
-						String fileId = change.getFileId();
-						final GDriveFile localFile = googleStore
-								.getFile(fileId);
-						logger.info("file changed " + localFile + " <> "
-								+ fileId);
-						if (change.getDeleted()
-								|| change.getFile().getLabels().getTrashed()) {
-							if (localFile != null) {
-								int deletedFiles = googleStore
-										.deleteFile(localFile.getId());
-								logger.info("deleted files " + deletedFiles);
+						processChange(change.getFileId(), change);
+					}
+
+					logger.info("No more changes to process.");
+
+					synchPendingFolders();
+				} catch (Exception e) {
+					logger.error(e.getMessage(), e);
+				}
+			}
+
+			private void processChange(String fileId, Change change) {
+				final GDriveFile localFile = googleStore.getFile(fileId);
+				logger.info("Processing changes for file " + localFile + "...");
+				if (change.getDeleted()
+						|| change.getFile().getLabels().getTrashed()) {
+					if (localFile != null) {
+						int deletedFiles = googleStore.deleteFile(localFile
+								.getId());
+						logger.info("deleted files " + deletedFiles);
+					}
+					return;
+				}
+
+				File changeFile = change.getFile();
+				Set<String> parents = new HashSet<String>();
+				for (ParentReference parentReference : changeFile.getParents()) {
+					parents.add(parentReference.getId());
+				}
+
+				if (localFile == null) {
+					// TODO: arreglar el path
+					GDriveFile newLocalFile = googleHelper
+							.createGDriveFile(changeFile);
+					if (!newLocalFile.isDirectory()) {
+						newLocalFile.setLargestChangeId(change.getId());
+					} else {
+						// si es un directorio no marcamos para que
+						// se
+						// sincronize luego
+					}
+
+					logger.info("New file " + newLocalFile);
+					googleStore.addFile(newLocalFile);
+
+				} else if (change.getId() > localFile.getLargestChangeId()) {
+					// File updated
+					// renamed file?
+					logger.info("Updating file " + localFile);
+					GDriveFile patchedLocalFile = googleHelper
+							.createGDriveFile(change.getFile());
+					patchedLocalFile.setLargestChangeId(change.getId());
+					googleStore.updateFile(patchedLocalFile);
+				} else {
+					logger.error("Processing ununderstood change :(");
+					GDriveFile patchedLocalFile = googleHelper
+							.createGDriveFile(change.getFile());
+					logger.error("Updating file " + localFile + " to "
+							+ patchedLocalFile);
+					patchedLocalFile.setLargestChangeId(change.getId());
+					googleStore.updateFile(patchedLocalFile);
+				}
+			}
+
+			private void synchPendingFolders() {
+				logger.info("Checking for pending folders to synchronize...");
+				try {
+					// always sync pending directories first
+					List<String> unsynchChilds = null;
+					while (!(unsynchChilds = googleStore
+							.getAllFolderIdsByChangeId(0)).isEmpty()) {
+						List<Callable<Boolean>> tasks = new ArrayList<Callable<Boolean>>();
+
+						int total = googleStore.getAllFolderIdsByChangeId(-1)
+								.size();
+						int totalPending = unsynchChilds.size();
+						logger.info("Synchronizing folders ("
+								+ (total - totalPending) + " out of " + total
+								+ ")...");
+
+						int limit = 10;
+						for (String unsynchChild : unsynchChilds) {
+							logger.info("Creating synch task for "
+									+ unsynchChild + "...");
+							tasks.add(newSynchTask(unsynchChild));
+							limit--;
+							if (limit < 0) {
+								break;
 							}
-							continue;
 						}
-
-						File changeFile = change.getFile();
-						Set<String> parents = new HashSet<String>();
-						for (ParentReference parentReference : changeFile
-								.getParents()) {
-							parents.add(parentReference.getId());
-						}
-
-						if (localFile == null) {
-
-							// TODO: arreglar el path
-							GDriveFile newLocalFile = googleHelper
-									.createGDriveFile(changeFile);
-							if (!newLocalFile.isDirectory()) {
-								newLocalFile.setLargestChangeId(change.getId());
-							} else {
-								// si es un directorio no marcamos para que
-								// se
-								// sincronize luego
+						logger.info("Executing " + tasks.size() + "...");
+						List<Future<Boolean>> futures = executor
+								.invokeAll(tasks);
+						logger.info("Waiting for all executions to finish...");
+						while (!futures.isEmpty()) {
+							Thread.sleep(200);
+							for (Iterator<Future<Boolean>> it = futures
+									.iterator(); it.hasNext();) {
+								Future<Boolean> future = it.next();
+								if (future.isDone()) {
+									// logger.info("Task result: " +
+									// future.get());
+									it.remove();
+								}
 							}
-
-							logger.info("New file " + newLocalFile);
-							googleStore.addFile(newLocalFile);
-
-						} else if (change.getId() > localFile
-								.getLargestChangeId()) {
-							// File updated
-							// renamed file?
-							logger.info("Updating file " + localFile);
-							GDriveFile patchedLocalFile = googleHelper
-									.createGDriveFile(change.getFile());
-							patchedLocalFile.setLargestChangeId(change.getId());
-							googleStore.updateFile(localFile, patchedLocalFile);
-						} else {
-							logger.error("Processing ununderstood change :(");
-							logger.error("Updating file " + localFile);
-							GDriveFile patchedLocalFile = googleHelper
-									.createGDriveFile(change.getFile());
-							patchedLocalFile.setLargestChangeId(change.getId());
-							googleStore.updateFile(localFile, patchedLocalFile);
 						}
+						logger.info("All executions finished to run.  "
+								+ "Lets check again for any pending folders...");
+
 					}
 				} catch (InterruptedException e) {
 					logger.error(e.getMessage(), e);
@@ -211,13 +225,61 @@ public class GoogleDBUpdater {
 
 	}
 
+	/**
+	 * Synchronizes a directory
+	 * 
+	 * @param fileId
+	 *            the file to synchronize
+	 */
+	public void synch(String fileId) {
+		long largestChangeId = googleHelper.getLargestChangeId(-1);
+		File file = googleHelper.getFile(fileId);
+
+		if (file == null || file.getLabels().getTrashed()) {
+			googleStore.deleteFile(fileId);
+		} else {
+			GDriveFile updatedFile = googleHelper.createGDriveFile(file);
+			updatedFile.setLargestChangeId(largestChangeId);
+			googleStore.updateFile(updatedFile);
+		}
+	}
+
+	public void synchFolder(String folderId) {
+		long largestChangeId = googleHelper.getLargestChangeId(-1);
+		File file = googleHelper.getFile(folderId);
+
+		if (file == null || file.getLabels().getTrashed()) {
+			googleStore.deleteFile(folderId);
+		} else if (!googleHelper.isDirectory(file)) {
+			throw new IllegalArgumentException("Can't sync folder '" + folderId
+					+ "' because it is not a folder");
+		} else {
+			logger.info("synching childs for folder '" + folderId + "'");
+			List<GDriveFile> childs = googleHelper.list(folderId);
+			for (GDriveFile child : childs) {
+				if (child.isDirectory()) {
+					GDriveFile updatedFile = googleHelper
+							.createGDriveFile(child);
+					updatedFile.setLargestChangeId(largestChangeId);
+					googleStore.updateFile(updatedFile);
+				} else {
+					processUpdatedFile(child);
+				}
+			}
+		}
+
+		googleStore.updateFile(updatedFile);
+	}
+
+	private void processUpdatedFile(GDriveFile child) {
+
+	}
+
 	private Callable<Boolean> newSynchTask(final String folderId) {
 		return new Callable<Boolean>() {
 			@Override
 			public Boolean call() {
 				try {
-					Thread.sleep(5000);
-
 					String threadName = "synch(" + folderId + ")";
 					// Thread.currentThread().setName(threadName);
 					logger.debug("Running " + threadName + "...");
@@ -239,37 +301,8 @@ public class GoogleDBUpdater {
 								+ folderFile.getName() + "' already synched");
 					}
 
-					int total = googleStore.getAllFolderIdsByChangeId(-1)
-							.size();
-					int totalPending = googleStore.getAllFolderIdsByChangeId(0)
-							.size();
-					logger.info("synchronizing (" + (total - totalPending)
-							+ " out of " + total + ") [" + folderFile.getName()
-							+ "]...");
-					// TODO: borrar basura que pueda haber quedado de
-					// ejecuciones
-					// anteriores
-					long localLargestChangeId = googleStore
-							.getLargestChangeId();
-					long startLargestChangeId = googleHelper
-							.getLargestChangeId(localLargestChangeId);
-					if (startLargestChangeId == localLargestChangeId) {
-						logger.debug("folder '" + folderFile.getName()
-								+ "' already synchronized");
-					}
-
 					List<GDriveFile> childs = googleHelper.list(folderFile
 							.getId());
-
-					long endLargestChangeId = googleHelper
-							.getLargestChangeId(localLargestChangeId);
-					if (endLargestChangeId != startLargestChangeId) {
-						// remote changes while getting list
-						logger.info("remote changes while getting list. skip it by now...");
-						// Thread.sleep(1000);
-						// synch(folderId);
-						return false;
-					}
 
 					// no se ha producido ningún cambio en remoto desde
 					// que empezamos a preguntar por la lista
@@ -301,6 +334,7 @@ public class GoogleDBUpdater {
 							file.setLargestChangeId(startLargestChangeId);
 						}
 					}
+					// TODO: controlar aqui si sólo se hace 1 update
 					googleStore.addFiles(childs);
 
 					// marcamos el folder como sincronizado

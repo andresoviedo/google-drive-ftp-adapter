@@ -195,7 +195,7 @@ public final class GoogleDB {
 		}
 	}
 
-	void updateFile(GDriveFile file, GDriveFile patch) {
+	void updateFile(GDriveFile patch) {
 
 		List<String> queries = new ArrayList<String>();
 		List<Object[]> args = new ArrayList<Object[]>();

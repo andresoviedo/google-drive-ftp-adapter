@@ -177,19 +177,8 @@ public class GoogleHelper {
 				new LocalServerReceiver()).authorize("user");
 	}
 
-	public List<GDriveFile> list(String folderId) {
-		List<GDriveFile> ret = null;
-		List<com.google.api.services.drive.model.File> googleFiles = requestList(folderId);
-		if (googleFiles != null) {
-			List<GDriveFile> children = new ArrayList<GDriveFile>(
-					googleFiles.size());
-			for (File googleFile : googleFiles) {
-				children.add(createGDriveFile(googleFile));
-			}
-			ret = children;
-		}
-		return ret;
-
+	public List<File> list(String folderId) {
+		return requestList(folderId);
 	}
 
 	GDriveFile getFileByName(String idFolder, String filename) {
@@ -222,7 +211,7 @@ public class GoogleHelper {
 		return jfsgFile;
 	}
 
-	private boolean isDirectory(File googleFile) {
+	public boolean isDirectory(File googleFile) {
 		// System.out.print("isDirectory(" + getFilename(googleFile) + ")=");
 		boolean isDirectory = "application/vnd.google-apps.folder"
 				.equals(googleFile.getMimeType());
@@ -365,13 +354,11 @@ public class GoogleHelper {
 		}
 	}
 
-	private File getFile(String fileId) {
+	public File getFile(String fileId) {
 		try {
-			System.out.print("getFile(" + fileId + ")");
-
+			logger.debug("getFile(" + fileId + ")");
 			File file = drive.files().get(fileId).execute();
-			logger.info("=" + getFilename(file));
-
+			logger.debug("getFile(" + fileId + ") = " + getFilename(file));
 			return file;
 		} catch (GoogleJsonResponseException e) {
 			if (e.getStatusCode() == 404) {

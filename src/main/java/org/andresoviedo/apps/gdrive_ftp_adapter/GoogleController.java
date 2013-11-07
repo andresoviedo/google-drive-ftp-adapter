@@ -39,10 +39,10 @@ public final class GoogleController {
 	}
 
 	public boolean renameFile(GDriveFile file, String newName) {
-		logger.info("Renaming file " + file + " to " + newName);
+		logger.info("Renaming file " + file.getName() + " to " + newName);
 		boolean ret = updateFile(file.getId(), new GDriveFile(newName));
 		if (ret)
-			googleUpdate.updateNow();
+			googleUpdate.updateNow(file.getId());
 		return ret;
 	}
 
@@ -50,15 +50,15 @@ public final class GoogleController {
 		logger.info("Patching file " + fileId + " with " + patch);
 		boolean ret = googleHelper.updateFile(fileId, patch, 3) != null;
 		if (ret)
-			googleUpdate.updateNow();
+			googleUpdate.updateNow(fileId);
 		return ret;
 	}
 
-	public boolean trashFile(String id) {
-		logger.info("Deleting file " + id + "...");
-		boolean ret = googleHelper.trashFile(id, 3) != null;
+	public boolean trashFile(String fileId) {
+		logger.info("Deleting file " + fileId + "...");
+		boolean ret = googleHelper.trashFile(fileId, 3) != null;
 		if (ret)
-			googleUpdate.updateNow();
+			googleUpdate.updateNow(fileId);
 		return ret;
 	}
 
