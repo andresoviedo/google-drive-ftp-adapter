@@ -1,19 +1,19 @@
-package org.andresoviedo.apps.gdrive_ftp_adapter;
+package org.andresoviedo.apps.gdrive_ftp_adapter.model;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.net.URL;
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
-import org.andresoviedo.apps.gdrive_ftp_adapter.db.GoogleDB;
-import org.apache.commons.io.FileUtils;
+import org.andresoviedo.apps.gdrive_ftp_adapter.Main;
+import org.andresoviedo.apps.gdrive_ftp_adapter.cache.Cache;
+import org.andresoviedo.apps.gdrive_ftp_adapter.impl.Controller;
+import org.andresoviedo.apps.gdrive_ftp_adapter.impl.GoogleModel;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.ftpserver.ftplet.FtpFile;
@@ -45,19 +45,24 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 
 	private String md5Checksum;
 
-	private long largestChangeId;
+	private long revision;
+
+	// TODO: Guardar el mimeType?
+	private String mimeType;
 
 	private Set<String> parents;
 
+	private Set<String> labels;
+
 	/** ******************************************************** */
 
-	private static Log logger = LogFactory.getLog(GDriveFile.class);
+	public static Log logger = LogFactory.getLog(GDriveFile.class);
 
-	private transient GoogleController googleController;
+	private transient Controller controller;
 
-	private transient GoogleDB googleStore;
+	public transient Cache model;
 
-	private transient GoogleHelper googleHelper;
+	private transient GoogleModel googleModel;
 
 	private transient File transferFile = null;
 
@@ -87,9 +92,9 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 	}
 
 	public void init() {
-		googleController = GoogleController.getInstance();
-		googleStore = GoogleDB.getInstance();
-		googleHelper = GoogleHelper.getInstance();
+		controller = Controller.getInstance();
+		model = Main.getInstance().getCache();
+		googleModel = GoogleModel.getInstance();
 	}
 
 	/**
@@ -119,11 +124,11 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 	}
 
 	public long getLargestChangeId() {
-		return largestChangeId;
+		return revision;
 	}
 
-	public void setLargestChangeId(long largestChangeId) {
-		this.largestChangeId = largestChangeId;
+	public void setRevision(long largestChangeId) {
+		this.revision = largestChangeId;
 	}
 
 	public void setLength(long length) {
@@ -150,8 +155,16 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 		this.md5Checksum = md5Checksum;
 	}
 
+	public Set<String> getLabels() {
+		return labels;
+	}
+
+	public void setLabels(Set<String> labels) {
+		this.labels = labels;
+	}
+
 	public final boolean mkdir() {
-		throw new UnsupportedOperationException("mkdir");
+		return controller.mkdir(this);
 	}
 
 	/**
@@ -160,7 +173,7 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 	public final boolean setLastModified(long time) {
 		final GDriveFile newParam = new GDriveFile(null);
 		newParam.lastModified = time;
-		return googleController.updateFile(getId(), newParam);
+		return controller.updateFile(getId(), newParam);
 	}
 
 	public final boolean setLastModified2(long time) {
@@ -170,7 +183,7 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 
 	public final boolean delete() {
 		logger.info("Deleting file " + this);
-		return googleController.trashFile(getId());
+		return controller.trashFile(getId());
 	}
 
 	public String getName() {
@@ -275,84 +288,27 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 
 	@Override
 	public boolean move(FtpFile destination) {
-		return googleController.renameFile(this, destination.getName());
+		return controller.renameFile(this, destination.getName());
 	}
 
-	@Override
 	public List<FtpFile> listFiles() {
-		List<FtpFile> query = googleStore.getFiles(getId());
-		// for (FtpFile file : query) {
-		// ((GDriveFile) file).setPath(getId().equals("root") ? file.getName()
-		// : getPath() + FILE_SEPARATOR + file.getName());
-		// }
-		// interceptar para "codificar" los ficheros duplicados
-		Map<String, GDriveFile> nonDuplicatedNames = new HashMap<String, GDriveFile>(
-				query.size());
-		for (FtpFile file : query) {
-			final GDriveFile file2 = (GDriveFile) file;
-			final String newPath = getId().equals("root") ? file.getName()
-					: getPath() + FILE_SEPARATOR + file.getName();
-			file2.setPath(newPath);
-
-			if (nonDuplicatedNames.containsKey(file2.getPath())) {
-				GDriveFile file3 = nonDuplicatedNames.get(file2.getPath());
-				file3.setPath(file3.getPath() + DUPLICATED_FILE_TOKEN
-						+ file3.getId());
-				final String encodedName = file2.getPath()
-						+ DUPLICATED_FILE_TOKEN + file2.getId();
-				logger.debug("Returning virtual path for duplicated file '"
-						+ encodedName + "'");
-				// assert nonDuplicatedNames.contains(encodedName);
-				file2.setPath(encodedName);
-				nonDuplicatedNames.put(encodedName, file2);
-			} else {
-				nonDuplicatedNames.put(file2.getPath(), file2);
-			}
+		// TODO: Generics possible?
+		List<GDriveFile> files = model.getFiles(getId());
+		List<FtpFile> ret = new ArrayList<FtpFile>(files.size());
+		for (GDriveFile retg : files) {
+			ret.add(retg);
 		}
-		return query;
+		return ret;
 	}
 
 	@Override
 	public OutputStream createOutputStream(long offset) throws IOException {
-		if (isDirectory()) {
-			throw new IllegalArgumentException(
-					"createOutputStream en directorio?");
-		}
-
-		transferFile = File.createTempFile("gdrive-synch-", ".upload");
-
-		if (transferFile == null || !transferFile.exists()) {
-			throw new IllegalStateException(
-					"No se dispone de la URL de descarga");
-		}
-
-		transferFileOutputStream = new FileOutputStream(transferFile) {
-			@Override
-			public void close() throws IOException {
-				super.close();
-				if (googleHelper.uploadFile(GDriveFile.this) == null) {
-					throw new RuntimeException("Falló la subida del fichero "
-							+ GDriveFile.this);
-				}
-			}
-		};
-		return transferFileOutputStream;
+		return controller.createOutputStream(this, offset);
 	}
 
 	@Override
 	public InputStream createInputStream(long offset) throws IOException {
-		transferFile = googleHelper.downloadFile(this);
-		if (transferFile == null) {
-			throw new IllegalStateException(
-					"No se dispone de la URL de descarga");
-		}
-
-		try {
-			transferFileInputStream = FileUtils.openInputStream(transferFile);
-			return transferFileInputStream;
-		} catch (IOException ex) {
-			return null;
-		}
+		return controller.createInputStream(this, offset);
 	}
 
 	@Override
@@ -364,9 +320,19 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 		ret.setLength(getLength());
 		ret.setLastModified2(getLastModified());
 		ret.setMd5Checksum(getMd5Checksum());
-		ret.setLargestChangeId(getLargestChangeId());
+		ret.setRevision(getLargestChangeId());
 		ret.setParents(getParents());
 		return ret;
+	}
+
+	// 0000000000000000000000000000000000000000000000000
+
+	public void setMimeType(String mimeType) {
+		this.mimeType = mimeType;
+	}
+
+	public long getRevision() {
+		return revision;
 	}
 
 }

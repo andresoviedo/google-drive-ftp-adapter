@@ -1,17 +1,17 @@
-package org.andresoviedo.apps.gdrive_ftp_adapter.impl;
+package org.andresoviedo.apps.gdrive_ftp_adapter.security;
 
 import org.apache.ftpserver.ftplet.UserManager;
 import org.apache.ftpserver.usermanager.ClearTextPasswordEncryptor;
 import org.apache.ftpserver.usermanager.UserManagerFactory;
 
-public class TestUserManagerFactory implements UserManagerFactory {
+public class FtpUserManagerFactory implements UserManagerFactory {
 
-	public TestUserManagerFactory() {
+	public FtpUserManagerFactory() {
 
 	}
 
 	@Override
 	public UserManager createUserManager() {
-		return new TestUserManager("admin", new ClearTextPasswordEncryptor());
+		return new FtpUserManager("admin", new ClearTextPasswordEncryptor());
 	}
 }

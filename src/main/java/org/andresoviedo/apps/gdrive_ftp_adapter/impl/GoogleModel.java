@@ -1,4 +1,4 @@
-package org.andresoviedo.apps.gdrive_ftp_adapter;
+package org.andresoviedo.apps.gdrive_ftp_adapter.impl;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -12,6 +12,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.andresoviedo.apps.gdrive_ftp_adapter.model.GDriveFile;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -56,9 +57,9 @@ import com.google.api.services.drive.model.ParentReference;
  * @author Andres Oviedo
  * 
  */
-public class GoogleHelper {
+public class GoogleModel {
 
-	private static Log logger = LogFactory.getLog(GoogleHelper.class);
+	private static Log logger = LogFactory.getLog(GoogleModel.class);
 
 	/**
 	 * Be sure to specify the name of your application. If the application name
@@ -77,7 +78,7 @@ public class GoogleHelper {
 	 */
 	private static FileDataStoreFactory dataStoreFactory;
 
-	private static GoogleHelper instance;
+	private static GoogleModel instance;
 
 	/** Global instance of the JSON factory. */
 	private static final JsonFactory JSON_FACTORY = JacksonFactory
@@ -100,9 +101,9 @@ public class GoogleHelper {
 		}
 	}
 
-	public static GoogleHelper getInstance() {
+	public static GoogleModel getInstance() {
 		if (instance == null) {
-			instance = new GoogleHelper();
+			instance = new GoogleModel();
 		}
 		return instance;
 	}
@@ -111,7 +112,7 @@ public class GoogleHelper {
 
 	private Drive drive;
 
-	private GoogleHelper() {
+	private GoogleModel() {
 		init();
 	}
 
@@ -177,123 +178,14 @@ public class GoogleHelper {
 				new LocalServerReceiver()).authorize("user");
 	}
 
-	public List<GDriveFile> list(String folderId) {
-		List<GDriveFile> ret = null;
-		List<com.google.api.services.drive.model.File> googleFiles = requestList(folderId);
-		if (googleFiles != null) {
-			List<GDriveFile> children = new ArrayList<GDriveFile>(
-					googleFiles.size());
-			for (File googleFile : googleFiles) {
-				children.add(createGDriveFile(googleFile));
-			}
-			ret = children;
-		}
-		return ret;
-
+	public List<File> list(String folderId) {
+		return requestListImpl(folderId, 3);
 	}
-
-	GDriveFile getFileByName(String idFolder, String filename) {
-		GDriveFile ret = null;
-		File googleFile = requestFileByName(idFolder, filename, 3);
-		if (googleFile != null) {
-			ret = createGDriveFile(googleFile);
-		}
-		return ret;
-
-	}
-
-	public GDriveFile createGDriveFile(File googleFile) {
-		GDriveFile jfsgFile = new GDriveFile();
-		String filename = getFilename(googleFile);
-		jfsgFile.setName(filename);
-		jfsgFile.setId(googleFile.getId());
-		jfsgFile.setLastModified2(getLastModified(googleFile));
-		jfsgFile.setLength(getFileSize(googleFile));
-		jfsgFile.setDirectory(isDirectory(googleFile));
-		jfsgFile.setMd5Checksum(googleFile.getMd5Checksum());
-		jfsgFile.setParents(new HashSet<String>());
-		for (ParentReference ref : googleFile.getParents()) {
-			if (ref.getIsRoot()) {
-				jfsgFile.getParents().add("root");
-			} else {
-				jfsgFile.getParents().add(ref.getId());
-			}
-		}
-		return jfsgFile;
-	}
-
-	private boolean isDirectory(File googleFile) {
-		// System.out.print("isDirectory(" + getFilename(googleFile) + ")=");
-		boolean isDirectory = "application/vnd.google-apps.folder"
-				.equals(googleFile.getMimeType());
-		// logger.info("=" + isDirectory);
-		return isDirectory;
-	}
-
-	private long getLastModified(File googleFile) {
-		final boolean b = googleFile != null
-				&& googleFile.getModifiedDate() != null;
-		if (b) {
-			return googleFile.getModifiedDate().getValue();
-		} else {
-			return 0;
-		}
-
-	}
-
-	private long getFileSize(File googleFile) {
-		return googleFile.getFileSize() == null ? 0 : googleFile.getFileSize();
-	}
-
-	private List<File> requestList(String id) {
-		return requestListImpl(id, 3);
-	}
-
-	// public List<File> requestListImpl(String id, int retry) {
-	// try {
-	// List<File> ret = null;
-	// List<File> childIds = new ArrayList<File>();
-	// logger.info("list(" + id + ")");
-	//
-	// Children.List request = drive.children().list(id);
-	//
-	// request.setQ("trashed = false");
-	//
-	// do {
-	// if (Thread.currentThread().isInterrupted()) {
-	// break;
-	// }
-	//
-	// ChildList files = request.execute();
-	// for (ChildReference childRef : files.getItems()) {
-	// if (Thread.currentThread().isInterrupted()) {
-	// break;
-	// }
-	// childIds.add(getFile(childRef.getId()));
-	// }
-	// request.setPageToken(files.getNextPageToken());
-	//
-	// } while (request.getPageToken() != null
-	// && request.getPageToken().length() > 0);
-	// return childIds;
-	// } catch (GoogleJsonResponseException e) {
-	// if (e.getStatusCode() == 404) {
-	// return null;
-	// }
-	// throw new RuntimeException(e);
-	// } catch (Exception e) {
-	// if (retry > 0) {
-	// logger.info("retrying...");
-	// return requestListImpl(id, --retry);
-	// }
-	// throw new RuntimeException(e);
-	// }
-	// }
 
 	public List<File> requestListImpl(String id, int retry) {
 		try {
 			List<File> childIds = new ArrayList<File>();
-			logger.debug("list(" + id + ")");
+			logger.trace("list(" + id + ") retry " + retry);
 
 			Files.List request = drive.files().list();
 			request.setQ("trashed = false and '" + id + "' in parents");
@@ -313,6 +205,7 @@ public class GoogleHelper {
 			return childIds;
 		} catch (GoogleJsonResponseException e) {
 			if (e.getStatusCode() == 404) {
+				// TODO: y si nos borran la última página pasa por aquí?
 				return null;
 			}
 			throw new RuntimeException(e);
@@ -358,20 +251,18 @@ public class GoogleHelper {
 			throw new RuntimeException(e);
 		} catch (Exception e) {
 			if (retry > 0) {
-				logger.info("retrying...");
+				logger.debug("retrying...");
 				return requestFileByName(id, filename, --retry);
 			}
 			throw new RuntimeException(e);
 		}
 	}
 
-	private File getFile(String fileId) {
+	public File getFile(String fileId) {
 		try {
-			System.out.print("getFile(" + fileId + ")");
-
+			logger.trace("getFile(" + fileId + ")");
 			File file = drive.files().get(fileId).execute();
-			logger.info("=" + getFilename(file));
-
+			logger.trace("getFile(" + fileId + ") = " + file.getTitle());
 			return file;
 		} catch (GoogleJsonResponseException e) {
 			if (e.getStatusCode() == 404) {
@@ -383,46 +274,40 @@ public class GoogleHelper {
 		}
 	}
 
-	private static String getFilename(File file) {
-		// System.out.print("getFilename(" + file.getId() + ")");
-		String filename = file.getTitle() != null ? file.getTitle() : file
-				.getOriginalFilename();
-		// logger.info("=" + filename);
-		return filename;
-	}
-
-	private void updateDownloadUrl(GDriveFile jfsgDriveFile)
-			throws MalformedURLException {
+	public void updateDownloadUrl(GDriveFile jfsgDriveFile) {
 		// get download URL
-		File googleFile = getFile(jfsgDriveFile.getId());
-		switch (googleFile.getMimeType()) {
-		case "application/vnd.google-apps.spreadsheet":
-			jfsgDriveFile
-					.setDownloadUrl(new URL(
-							googleFile
-									.getExportLinks()
-									.get("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")));
-			// file.getExportLinks().get("application/pdf")
-			break;
-		case "application/vnd.google-apps.document":
-			jfsgDriveFile
-					.setDownloadUrl(new URL(
-							googleFile
-									.getExportLinks()
-									.get("application/vnd.openxmlformats-officedocument.wordprocessingml.document")));
-			break;
-		default:
-			if (googleFile != null && googleFile.getDownloadUrl() != null
-					&& googleFile.getDownloadUrl().length() > 0) {
-				jfsgDriveFile.setDownloadUrl(new URL(googleFile
-						.getDownloadUrl()));
-			} else {
-				throw new RuntimeException(
-						"No se ha podido descargar el fichero '"
-								+ jfsgDriveFile.getName() + "'");
+		try {
+			File googleFile = getFile(jfsgDriveFile.getId());
+			switch (googleFile.getMimeType()) {
+			case "application/vnd.google-apps.spreadsheet":
+				jfsgDriveFile
+						.setDownloadUrl(new URL(
+								googleFile
+										.getExportLinks()
+										.get("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")));
+				// file.getExportLinks().get("application/pdf")
+				break;
+			case "application/vnd.google-apps.document":
+				jfsgDriveFile
+						.setDownloadUrl(new URL(
+								googleFile
+										.getExportLinks()
+										.get("application/vnd.openxmlformats-officedocument.wordprocessingml.document")));
+				break;
+			default:
+				if (googleFile != null && googleFile.getDownloadUrl() != null
+						&& googleFile.getDownloadUrl().length() > 0) {
+					jfsgDriveFile.setDownloadUrl(new URL(googleFile
+							.getDownloadUrl()));
+				} else {
+					throw new RuntimeException(
+							"No se ha podido descargar el fichero '"
+									+ jfsgDriveFile.getName() + "'");
+				}
 			}
+		} catch (MalformedURLException e) {
+			throw new RuntimeException(e);
 		}
-
 	}
 
 	/**
@@ -600,7 +485,7 @@ public class GoogleHelper {
 		}
 	}
 
-	public File updateFile(String fileId, GDriveFile newParam, int retry) {
+	File updateFile(String fileId, GDriveFile newParam, int retry) {
 		try {
 			// First retrieve the file from the API.
 			File file = getFile(fileId);
@@ -647,22 +532,22 @@ public class GoogleHelper {
 	//
 	// }
 
-	public String mkdirs(String path) {
-		String[] paths = path.split(GDriveFile.FILE_SEPARATOR);
-		String lastParentId = "root";
-		for (String subpath : paths) {
-			GDriveFile dir = getFileByName(lastParentId, subpath);
-			if (dir == null) {
-				lastParentId = mkdir(lastParentId, subpath).getId();
-			} else if (dir.isDirectory()) {
-				lastParentId = dir.getId();
-			} else {
-				throw new RuntimeException("El directorio " + path
-						+ " no se puede crear por " + subpath);
-			}
-		}
-		return lastParentId;
-	}
+	// public String mkdirs(String path) {
+	// String[] paths = path.split(GDriveFile.FILE_SEPARATOR);
+	// String lastParentId = "root";
+	// for (String subpath : paths) {
+	// GDriveFile dir = getFileByName(lastParentId, subpath);
+	// if (dir == null) {
+	// lastParentId = mkdir(lastParentId, subpath).getId();
+	// } else if (dir.isDirectory()) {
+	// lastParentId = dir.getId();
+	// } else {
+	// throw new RuntimeException("El directorio " + path
+	// + " no se puede crear por " + subpath);
+	// }
+	// }
+	// return lastParentId;
+	// }
 
 	private File mkdir(String parentId, String filename) {
 		GDriveFile jfsgFile = new GDriveFile(Collections.singleton(parentId),

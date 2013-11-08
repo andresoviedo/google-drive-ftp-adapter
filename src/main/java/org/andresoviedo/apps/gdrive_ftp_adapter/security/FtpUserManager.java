@@ -1,4 +1,4 @@
-package org.andresoviedo.apps.gdrive_ftp_adapter.impl;
+package org.andresoviedo.apps.gdrive_ftp_adapter.security;
 
 import java.util.Arrays;
 
@@ -16,13 +16,13 @@ import org.apache.ftpserver.usermanager.impl.AbstractUserManager;
 import org.apache.ftpserver.usermanager.impl.BaseUser;
 import org.apache.ftpserver.usermanager.impl.ConcurrentLoginPermission;
 
-class TestUserManager extends AbstractUserManager {
+class FtpUserManager extends AbstractUserManager {
 
-	private static Log logger = LogFactory.getLog(TestUserManager.class);
+	private static Log logger = LogFactory.getLog(FtpUserManager.class);
 	private BaseUser testUser;
 	private BaseUser anonUser;
 
-	public TestUserManager(String adminName, PasswordEncryptor passwordEncryptor) {
+	public FtpUserManager(String adminName, PasswordEncryptor passwordEncryptor) {
 		super(adminName, passwordEncryptor);
 
 		testUser = new BaseUser();
@@ -31,8 +31,8 @@ class TestUserManager extends AbstractUserManager {
 		testUser.setEnabled(true);
 		testUser.setHomeDirectory("c:\\temp");
 		testUser.setMaxIdleTime(10000);
-		testUser.setName("andres");
-		testUser.setPassword("andres");
+		testUser.setName("user");
+		testUser.setPassword("user");
 
 		anonUser = new BaseUser(testUser);
 		anonUser.setName("anonymous");
@@ -51,7 +51,7 @@ class TestUserManager extends AbstractUserManager {
 
 	@Override
 	public String[] getAllUserNames() throws FtpException {
-		return new String[] { "andres", anonUser.getName() };
+		return new String[] { "user", anonUser.getName() };
 	}
 
 	@Override
@@ -67,8 +67,8 @@ class TestUserManager extends AbstractUserManager {
 
 	@Override
 	public boolean doesExist(String username) throws FtpException {
-		return ("andres".equals(username) || anonUser.getName()
-				.equals(username)) ? true : false;
+		return ("user".equals(username) || anonUser.getName().equals(username)) ? true
+				: false;
 	}
 
 	@Override
@@ -78,8 +78,8 @@ class TestUserManager extends AbstractUserManager {
 				.isAssignableFrom(authentication.getClass())) {
 			UsernamePasswordAuthentication upAuth = (UsernamePasswordAuthentication) authentication;
 
-			if ("andres".equals(upAuth.getUsername())
-					&& "andres".equals(upAuth.getPassword())) {
+			if ("user".equals(upAuth.getUsername())
+					&& "user".equals(upAuth.getPassword())) {
 				return testUser;
 			}
 
