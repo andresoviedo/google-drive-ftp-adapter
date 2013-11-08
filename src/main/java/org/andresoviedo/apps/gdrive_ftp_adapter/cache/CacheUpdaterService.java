@@ -96,29 +96,32 @@ public class CacheUpdaterService {
 			public void run() {
 				try {
 					// revisar lista de cambios de google
-					long largestChangeId = cache.getRevision();
-					logger.info("Largest changeId found in local database "
-							+ largestChangeId);
-					if (largestChangeId > 0) {
-
-						List<Change> googleChanges = gmodel
-								.getAllChanges(largestChangeId + 1);
-
-						// TODO: revisar la sincronización de esto cuando theads
-						// > 1
-						logger.info("Detected " + googleChanges.size()
-								+ " changes");
-
-						for (Change change : googleChanges) {
-							processChange(change.getFileId(), change);
-						}
-
-						logger.info("No more changes to process.");
-					}
+					checkForRemoteChanges();
 
 					synchPendingFolders();
 				} catch (Exception e) {
 					logger.error(e.getMessage(), e);
+				}
+			}
+
+			private void checkForRemoteChanges() {
+				long largestChangeId = cache.getRevision();
+				logger.info("Largest changeId found in local database "
+						+ largestChangeId);
+				if (largestChangeId > 0) {
+
+					List<Change> googleChanges = gmodel
+							.getAllChanges(largestChangeId + 1);
+
+					// TODO: revisar la sincronización de esto cuando theads
+					// > 1
+					logger.info("Detected " + googleChanges.size() + " changes");
+
+					for (Change change : googleChanges) {
+						processChange(change.getFileId(), change);
+					}
+
+					logger.info("No more changes to process.");
 				}
 			}
 
@@ -159,7 +162,7 @@ public class CacheUpdaterService {
 					logger.info("New file " + newLocalFile);
 					cache.addFile(newLocalFile);
 
-				} else if (change.getId() > localFile.getLargestChangeId()) {
+				} else if (change.getId() > localFile.getRevision()) {
 					// File updated
 					// renamed file?
 					logger.info("Updating file " + localFile);
@@ -229,11 +232,12 @@ public class CacheUpdaterService {
 						}
 						logger.info("All executions finished to run.  "
 								+ "Lets check again for any pending folders...");
-
+						synchPendingFolders();
 					}
 				} catch (InterruptedException e) {
 					logger.error(e.getMessage(), e);
 				}
+				logger.info("Synchronization finalized OK");
 			}
 		};
 
@@ -273,32 +277,37 @@ public class CacheUpdaterService {
 			// esos machaquen estos
 			long largestChangeId = gmodel.getLargestChangeId(-1);
 
-			GDriveFile remoteFile = GDriveFileFactory.create(gmodel
-					.getFile(folderId));
-			if (remoteFile == null
-					|| remoteFile.getLabels().contains("trashed")) {
-				// TODO: if exists maybe?
-				final int deleted = cache.deleteFile(folderId);
-				if (deleted > 0) {
-					logger.info("Deleted " + deleted + " local files");
-				} else {
-					logger.info("Nothing to local delete");
-				}
-				return;
-			}
+			GDriveFile remoteFile = null;
 
-			if (!remoteFile.isDirectory()) {
-				throw new IllegalArgumentException("Can't sync folder '"
-						+ folderId + "' because it is a regular file");
+			if (folderId.equals("root")) {
+				remoteFile = cache.getFile("root");
+			} else {
+				remoteFile = GDriveFileFactory.create(gmodel.getFile(folderId));
+				if (remoteFile == null
+						|| remoteFile.getLabels().contains("trashed")) {
+					// TODO: if exists maybe?
+					final int deleted = cache.deleteFile(folderId);
+					if (deleted > 0) {
+						logger.info("Deleted " + deleted + " local files");
+					} else {
+						logger.info("Nothing to local delete");
+					}
+					return;
+				}
+
+				if (!remoteFile.isDirectory()) {
+					throw new IllegalArgumentException("Can't sync folder '"
+							+ folderId + "' because it is a regular file");
+				}
 			}
 
 			{
 				// Local folder only to this context and to check revision
 				GDriveFile localFolder = cache.getFile(folderId);
 				if (localFolder == null) {
-					logger.debug("Adding folder '" + folderId + "'");
-				} else if (localFolder.getLargestChangeId() < largestChangeId) {
-					logger.debug("Updating folder '" + folderId + "'");
+					logger.info("Adding folder '" + folderId + "'");
+				} else if (localFolder.getRevision() < largestChangeId) {
+					logger.info("Updating folder '" + folderId + "'");
 					remoteFile.setRevision(largestChangeId);
 				} else {
 					logger.warn("Folder '" + folderId + "' already updated");
@@ -308,22 +317,21 @@ public class CacheUpdaterService {
 
 			logger.debug("Recreating childs for folder '" + folderId + "'");
 
-			final List<File> list = gmodel.list(folderId);
-			// for (File f : list)
-			// logger.warn(f.getTitle());
-			List<GDriveFile> newLocalChilds = GDriveFileFactory.create(list,
-					largestChangeId);
+			List<GDriveFile> newLocalChilds = GDriveFileFactory.create(
+					gmodel.list(folderId), 0);
 			if (newLocalChilds == null) {
 				logger.warn("File deleted remotely while requesting list?");
 				cache.deleteFile(folderId);
 				return;
+			} else {
+				for (GDriveFile file : newLocalChilds) {
+					if (!file.isDirectory())
+						file.setRevision(largestChangeId);
+				}
 			}
 
-			for (GDriveFile file : newLocalChilds) {
-				if (!file.isDirectory())
-					file.setRevision(largestChangeId);
-			}
-
+			logger.info("Adding childs for '" + remoteFile.getName() + "':"
+					+ newLocalChilds);
 			cache.updateChilds(remoteFile, newLocalChilds);
 		} catch (Exception e) {
 			logger.fatal(e.getMessage(), e);

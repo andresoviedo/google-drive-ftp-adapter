@@ -6,14 +6,13 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
 import org.andresoviedo.apps.gdrive_ftp_adapter.Main;
 import org.andresoviedo.apps.gdrive_ftp_adapter.cache.Cache;
 import org.andresoviedo.apps.gdrive_ftp_adapter.impl.Controller;
-import org.andresoviedo.apps.gdrive_ftp_adapter.impl.GoogleModel;
+import org.andresoviedo.apps.gdrive_ftp_adapter.impl.FtpFileSystemView;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.ftpserver.ftplet.FtpFile;
@@ -29,10 +28,6 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 
 	private static final long serialVersionUID = 1L;
 
-	public static final String DUPLICATED_FILE_TOKEN = "__###__";
-
-	public static final String FILE_SEPARATOR = "/";
-
 	private String id;
 
 	private String name;
@@ -40,8 +35,6 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 	private boolean isDirectory;
 
 	private long size;
-
-	private long lastModified;
 
 	private String md5Checksum;
 
@@ -62,17 +55,13 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 
 	public transient Cache model;
 
-	private transient GoogleModel googleModel;
-
 	private transient File transferFile = null;
 
 	private transient URL downloadUrl;
 
-	private transient InputStream transferFileInputStream;
-
-	private transient OutputStream transferFileOutputStream;
-
 	private transient String path;
+
+	private FtpFileSystemView fileSystem;
 
 	public GDriveFile() {
 		this("");
@@ -94,7 +83,6 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 	public void init() {
 		controller = Controller.getInstance();
 		model = Main.getInstance().getCache();
-		googleModel = GoogleModel.getInstance();
 	}
 
 	/**
@@ -121,10 +109,6 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 
 	public void setName(String name) {
 		this.name = name;
-	}
-
-	public long getLargestChangeId() {
-		return revision;
 	}
 
 	public void setRevision(long largestChangeId) {
@@ -172,12 +156,12 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 	 */
 	public final boolean setLastModified(long time) {
 		final GDriveFile newParam = new GDriveFile(null);
-		newParam.lastModified = time;
+		newParam.revision = time;
 		return controller.updateFile(getId(), newParam);
 	}
 
 	public final boolean setLastModified2(long time) {
-		this.lastModified = time;
+		this.revision = time;
 		return true;
 	}
 
@@ -195,12 +179,19 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 	}
 
 	public long getLastModified() {
-		return lastModified;
+		return revision;
+	}
+
+	public void setMimeType(String mimeType) {
+		this.mimeType = mimeType;
+	}
+
+	public long getRevision() {
+		return revision;
 	}
 
 	public String toString() {
-		return "JFSGDriveFile id='" + getId() + "',filename='" + getName()
-				+ "'";
+		return getName() + "(" + getId() + ")";
 	}
 
 	/**
@@ -292,13 +283,7 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 	}
 
 	public List<FtpFile> listFiles() {
-		// TODO: Generics possible?
-		List<GDriveFile> files = model.getFiles(getId());
-		List<FtpFile> ret = new ArrayList<FtpFile>(files.size());
-		for (GDriveFile retg : files) {
-			ret.add(retg);
-		}
-		return ret;
+		return fileSystem.listFiles(this);
 	}
 
 	@Override
@@ -320,19 +305,23 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 		ret.setLength(getLength());
 		ret.setLastModified2(getLastModified());
 		ret.setMd5Checksum(getMd5Checksum());
-		ret.setRevision(getLargestChangeId());
+		ret.setRevision(getRevision());
 		ret.setParents(getParents());
+
+		ret.setMimeType(mimeType);
+		ret.setPath(getPath());
+		ret.setFileSystemView(getFileSystemView());
 		return ret;
 	}
 
+	private FtpFileSystemView getFileSystemView() {
+		return fileSystem;
+	}
+
+	public void setFileSystemView(FtpFileSystemView ftpFileSystemView) {
+		this.fileSystem = ftpFileSystemView;
+	}
+
 	// 0000000000000000000000000000000000000000000000000
-
-	public void setMimeType(String mimeType) {
-		this.mimeType = mimeType;
-	}
-
-	public long getRevision() {
-		return revision;
-	}
 
 }

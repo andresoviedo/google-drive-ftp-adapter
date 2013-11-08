@@ -1,5 +1,6 @@
 package org.andresoviedo.apps.gdrive_ftp_adapter.impl;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,9 +26,16 @@ public class FtpFileSystemView implements FileSystemFactory, FileSystemView {
 
 	private GDriveFile currentDir = null;
 
+	public static final String DUPLICATED_FILE_TOKEN = "__###__";
+
+	public static final String PEDING_SYNCHRONIZATION_TOKEN = "__UNSYNCH__";
+
+	public static final String FILE_SEPARATOR = "/";
+
 	public FtpFileSystemView() {
 		home = model.getFile("root");
 		home.setPath("");
+		home.setFileSystemView(this);
 		currentDir = home;
 	}
 
@@ -69,6 +77,10 @@ public class FtpFileSystemView implements FileSystemFactory, FileSystemView {
 		while (path.endsWith("/") || path.endsWith("\\") || path.endsWith(".")) {
 			path = path.substring(0, path.length() - 1);
 		}
+
+		if (path.contains(PEDING_SYNCHRONIZATION_TOKEN)) {
+			path = path.replace(PEDING_SYNCHRONIZATION_TOKEN, "");
+		}
 		return path;
 	}
 
@@ -83,9 +95,9 @@ public class FtpFileSystemView implements FileSystemFactory, FileSystemView {
 		}
 
 		GDriveFile lastKnownFile = (GDriveFile) home.clone();
-		for (String part : path.split(GDriveFile.FILE_SEPARATOR)) {
+		for (String part : path.split(FtpFileSystemView.FILE_SEPARATOR)) {
 
-			int nextIdx = part.indexOf(GDriveFile.DUPLICATED_FILE_TOKEN);
+			int nextIdx = part.indexOf(FtpFileSystemView.DUPLICATED_FILE_TOKEN);
 			if (nextIdx == -1) {
 				// caso normal
 				GDriveFile possiblySubdir = model.getFileByName(
@@ -99,7 +111,7 @@ public class FtpFileSystemView implements FileSystemFactory, FileSystemView {
 			}
 
 			String[] filenameAndId = part
-					.split(GDriveFile.DUPLICATED_FILE_TOKEN);
+					.split(FtpFileSystemView.DUPLICATED_FILE_TOKEN);
 			logger.info("Searching path: '" + lastKnownFile.getPath() + "/"
 					+ filenameAndId[0] + "' ('" + filenameAndId[1] + "')...");
 			GDriveFile possiblySubdir = model.getFileByName(
@@ -112,17 +124,19 @@ public class FtpFileSystemView implements FileSystemFactory, FileSystemView {
 			possiblySubdir
 					.setPath(lastKnownFile.getId().equals("root") ? lastKnownFile
 							.getName() : lastKnownFile.getPath()
-							+ GDriveFile.FILE_SEPARATOR
+							+ FtpFileSystemView.FILE_SEPARATOR
 							+ possiblySubdir.getName());
 			lastKnownFile = possiblySubdir;
 		}
 		if (lastKnownFile != null) {
 			lastKnownFile.setPath(path);
+			lastKnownFile.setFileSystemView(this);
 		}
+
 		return lastKnownFile;
 	}
 
-	public List<GDriveFile> listFiles(GDriveFile folderId) {
+	public List<FtpFile> listFiles(GDriveFile folderId) {
 		List<GDriveFile> query = model.getFiles(folderId.getId());
 		// for (FtpFile file : query) {
 		// ((GDriveFile) file).setPath(getId().equals("root") ? file.getName()
@@ -131,19 +145,20 @@ public class FtpFileSystemView implements FileSystemFactory, FileSystemView {
 		// interceptar para "codificar" los ficheros duplicados
 		Map<String, GDriveFile> nonDuplicatedNames = new HashMap<String, GDriveFile>(
 				query.size());
-		for (FtpFile file : query) {
-			final GDriveFile file2 = (GDriveFile) file;
-			final String newPath = folderId.getId().equals("root") ? file
-					.getName() : folderId.getPath() + GDriveFile.FILE_SEPARATOR
-					+ file.getName();
+		for (GDriveFile file2 : query) {
+			final String newPath = folderId.getId().equals("root") ? file2
+					.getName() : folderId.getPath()
+					+ FtpFileSystemView.FILE_SEPARATOR + file2.getName();
 			file2.setPath(newPath);
 
 			if (nonDuplicatedNames.containsKey(file2.getPath())) {
 				GDriveFile file3 = nonDuplicatedNames.get(file2.getPath());
 				file3.setPath(file3.getPath()
-						+ GDriveFile.DUPLICATED_FILE_TOKEN + file3.getId());
+						+ FtpFileSystemView.DUPLICATED_FILE_TOKEN
+						+ file3.getId());
 				final String encodedName = file2.getPath()
-						+ GDriveFile.DUPLICATED_FILE_TOKEN + file2.getId();
+						+ FtpFileSystemView.DUPLICATED_FILE_TOKEN
+						+ file2.getId();
 				GDriveFile.logger
 						.debug("Returning virtual path for duplicated file '"
 								+ encodedName + "'");
@@ -154,14 +169,27 @@ public class FtpFileSystemView implements FileSystemFactory, FileSystemView {
 				nonDuplicatedNames.put(file2.getPath(), file2);
 			}
 		}
-		return query;
+
+		for (GDriveFile file2 : query) {
+			if (file2.getRevision() == 0) {
+				file2.setPath(file2.getPath() + PEDING_SYNCHRONIZATION_TOKEN);
+			}
+			file2.setFileSystemView(this);
+		}
+
+		// TODO: Generics possible?
+		List<FtpFile> ret = new ArrayList<FtpFile>(query.size());
+		for (GDriveFile retg : query) {
+			ret.add(retg);
+		}
+		return ret;
 	}
 
 	@Override
 	public FtpFile getFile(String file) throws FtpException {
 		try {
 			return getFileByPath(currentDir.getPath()
-					+ GDriveFile.FILE_SEPARATOR + file);
+					+ FtpFileSystemView.FILE_SEPARATOR + file);
 		} catch (Exception e) {
 			e.printStackTrace();
 			return null;

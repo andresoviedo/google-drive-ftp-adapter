@@ -1,9 +1,10 @@
 package org.andresoviedo.apps.gdrive_ftp_adapter.cache;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -12,8 +13,12 @@ import org.andresoviedo.apps.gdrive_ftp_adapter.model.GDriveFile;
 import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.ArgumentPreparedStatementSetter;
+import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.PreparedStatementSetter;
 import org.springframework.jdbc.core.RowMapper;
 
 /**
@@ -238,38 +243,45 @@ public final class SQLiteCache implements Cache {
 	// }
 	// }
 
-	private void executeInTransaction(List<String> queries, List<Object[]> args) {
-		w.lock();
-		try {
-			dataSource.getConnection().setAutoCommit(false);
-			jdbcTemplate.execute("begin transaction");
-			for (int i = 0; i < queries.size(); i++) {
-				logger.warn("Executing " + queries.get(i) + " ==> "
-						+ Arrays.toString(args.get(i)));
-				if (args.get(i) == null) {
-					jdbcTemplate.update(queries.get(i));
-				} else {
-					jdbcTemplate.update(queries.get(i), args.get(i));
+	private void executeInTransaction(final List<String> queries,
+			final List<Object[]> args) {
+		jdbcTemplate.execute(new ConnectionCallback<Integer>() {
+			@Override
+			public Integer doInConnection(Connection connection)
+					throws SQLException, DataAccessException {
+				w.lock();
+				try {
+					connection.setAutoCommit(false);
+					int ret = 0;
+					// connection.createStatement().execute("begin transaction");
+					for (int i = 0; i < queries.size(); i++) {
+						if (args.get(i) == null) {
+							ret += connection.createStatement().executeUpdate(
+									queries.get(i));
+						} else {
+							PreparedStatement ps = connection
+									.prepareStatement(queries.get(i));
+							PreparedStatementSetter pssetter = new ArgumentPreparedStatementSetter(
+									args.get(i));
+							pssetter.setValues(ps);
+							ret += ps.executeUpdate();
+						}
+					}
+					connection.commit();
+					// connection.createStatement().execute("commit transaction");
+					return ret;
+				} finally {
+					try {
+						connection.setAutoCommit(true);
+					} catch (Throwable e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					w.unlock();
 				}
 			}
-			jdbcTemplate.execute("commit transaction");
-		} catch (SQLException e) {
-			logger.error(e.getMessage(), e);
-			try {
-				dataSource.getConnection().rollback();
 
-			} catch (SQLException e1) {
-				logger.error(e.getMessage(), e1);
-			}
-		} finally {
-			try {
-				dataSource.getConnection().setAutoCommit(true);
-			} catch (SQLException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			w.unlock();
-		}
+		});
 	}
 
 	public void updateFile(GDriveFile patch) {

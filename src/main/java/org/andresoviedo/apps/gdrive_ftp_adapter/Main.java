@@ -22,6 +22,9 @@ public class Main {
 
 	public static void main(String[] args) {
 		singleton = new Main();
+
+		// TODO: shutdown hook
+
 		singleton.init();
 		singleton.start();
 	}
