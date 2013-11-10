@@ -7,14 +7,14 @@ With this application you can:
 Features:
 * No installation required
 * FTP Server
-* Cache (for optimizing google drive access)
+* SQLite Cache
 * List folders, subfolders and files
 * Upload new files
 * Download files to local PC
 * Renaming files
 * Delete files
 * Changing remote timestamps
-* Change notification service
+* Database Sinchronization (polling)
 
 Run it:
 * Compile project and then run the Main.class.  
@@ -23,8 +23,8 @@ Run it:
 
 Any comments: andresoviedo@gmail.com
 
-WARN: This application is still in an alpha state. This application is currently released under the LGPL license.
+WARN: This application is still in an alpha state, so bugs may appear. This application is currently released under the LGPL license.
       Use this library at your own risk.
 
 WARN: This application uses a Google Drive API Key with a courtesy of 10 requests/second/user and 10 million request/day.
-      When it reaches the top it could be unavailable.
+      When it reaches the quota it could be unavailable.
