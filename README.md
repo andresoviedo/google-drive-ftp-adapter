@@ -24,8 +24,8 @@ Run it:
 
 Any comments: andresoviedo@gmail.com
 
-WARN: This application is still in an alpha state, so bugs may appear. This application is currently released under the LGPL license.
-      Use this library at your own risk.
+WARN: This application is still in an BETA state, so bugs may appear. This application is currently released under the LGPL license.
+      Use this application at your own risk.
 
 WARN: This application uses a Google Drive API Key with a courtesy of 10 requests/second/user and 10 million request/day.
       When it reaches the quota it could be unavailable.
