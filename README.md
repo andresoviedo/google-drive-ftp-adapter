@@ -16,7 +16,12 @@ Features:
 * Changing remote timestamps
 * Change notification service
 
-Comments: andresoviedo@gmail.com
+Run it:
+* Compile project and then run the Main.class.  
+* Use ftp://user:user@localhost/ from your application to to connect to your google drive.  
+* A Google authorization dialog will ask you to allow application to acces your files. Click "OK"
+
+Any comments: andresoviedo@gmail.com
 
 WARN: This application is still in an alpha state. This application is currently released under the LGPL license.
       Use this library at your own risk.
