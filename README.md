@@ -5,21 +5,22 @@ With this application you can:
 * Use it in conjunction with any comparison tool supporting FTP protocol to synch your files (beyond compare, filezilla, etc)
 
 Features:
-* No installation required
-* FTP Server
+* Standalone application
+* Apache Mina FTP Server
 * SQLite Cache
+* Cache sinchronization from Drive (polling)
 * List folders, subfolders and files
-* Upload new files
-* Download files to local PC
+* Upload new files (included to gdoc conversion)
+* Download files to local PC (included gdoc and gsheet conversion)
 * Renaming files
-* Delete files
-* Changing remote timestamps
-* Database Sinchronization (polling)
+* Touch remote timestamps
+* Trashing files or folders
+
 
 Run it:
-* Compile project and then run the Main.class.  
+* Compile maven project and then run the Main.class.  
 * Use ftp://user:user@localhost/ from your application to to connect to your google drive.  
-* A Google authorization dialog will ask you to allow application to acces your files. Click "OK"
+* A Google authorization dialog will ask you to allow application to acces your files. Click "OK".
 
 Any comments: andresoviedo@gmail.com
 
