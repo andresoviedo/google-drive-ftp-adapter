@@ -1,9 +1,11 @@
 ![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/blob/master/src/main/resources/images/icon.jpeg?raw=true)
 
-With this application you can sync your Google Drive with your favorite file comparison tool supporting the FTP protocol.
-I recommend using Beyond Compare or FileZilla, but there are a lot of comparison tools with ftp support out there.
+With this application you can:
+* Connect any FTP application to your Google Drive through the FTP protocol.
+* Use it in conjunction with any comparison tool supporting FTP protocol to synch your files (beyond compare, filezilla, etc)
 
 Features:
+* No installation required
 * FTP Server
 * Cache (for optimizing google drive access)
 * List folders, subfolders and files
