@@ -9,8 +9,15 @@
 		</layout>
 	</appender>
 
+	<logger name="org.apache.ftpserver.listener.nio.FtpLoggingFilter"
+		level="warn" additivity="false" />
+
+	<logger name="org.apache.ftpserver.impl.PassivePorts" level="error"
+		additivity="false" />
+
+
 	<root>
-		<priority value="debug" />
+		<priority value="info" />
 		<appender-ref ref="console" />
 	</root>
 

@@ -13,9 +13,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import org.andresoviedo.apps.gdrive_ftp_adapter.Main;
-import org.andresoviedo.apps.gdrive_ftp_adapter.impl.GoogleModel;
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.GDriveFile;
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.GDriveFileFactory;
+import org.andresoviedo.apps.gdrive_ftp_adapter.model.FtpGDriveFile;
+import org.andresoviedo.apps.gdrive_ftp_adapter.model.FtpGDriveFileFactory;
+import org.andresoviedo.apps.gdrive_ftp_adapter.service.GoogleService;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -35,7 +35,7 @@ public class CacheUpdaterService {
 
 	private static CacheUpdaterService instance;
 
-	private GoogleModel gmodel;
+	private GoogleService gmodel;
 
 	private Cache cache;
 
@@ -47,7 +47,7 @@ public class CacheUpdaterService {
 
 	private CacheUpdaterService() {
 		instance = this;
-		gmodel = GoogleModel.getInstance();
+		gmodel = GoogleService.getInstance();
 		cache = Main.getInstance().getCache();
 		executor = Executors.newFixedThreadPool(4);
 		timer = new Timer(true);
@@ -56,13 +56,13 @@ public class CacheUpdaterService {
 	}
 
 	private void init() {
-		GDriveFile rootFile = cache.getFile("root");
+		FtpGDriveFile rootFile = cache.getFile("root");
 		if (rootFile == null) {
-			rootFile = new GDriveFile("");
+			rootFile = new FtpGDriveFile("");
 			rootFile.setId("root");
 			rootFile.setDirectory(true);
 			rootFile.setParents(new HashSet<String>());
-			cache.addFile(rootFile);
+			cache.addOrUpdateFile(rootFile);
 		}
 	}
 
@@ -126,7 +126,7 @@ public class CacheUpdaterService {
 			}
 
 			private void processChange(String fileId, Change change) {
-				final GDriveFile localFile = cache.getFile(fileId);
+				final FtpGDriveFile localFile = cache.getFile(fileId);
 				logger.info("Processing changes for file " + localFile + "...");
 				if (change.getDeleted()
 						|| change.getFile().getLabels().getTrashed()) {
@@ -149,7 +149,7 @@ public class CacheUpdaterService {
 
 				if (localFile == null) {
 					// TODO: arreglar el path
-					GDriveFile newLocalFile = GDriveFileFactory
+					FtpGDriveFile newLocalFile = FtpGDriveFileFactory
 							.create(changeFile);
 					if (!newLocalFile.isDirectory()) {
 						newLocalFile.setRevision(change.getId());
@@ -160,24 +160,24 @@ public class CacheUpdaterService {
 					}
 
 					logger.info("New file " + newLocalFile);
-					cache.addFile(newLocalFile);
+					cache.addOrUpdateFile(newLocalFile);
 
 				} else if (change.getId() > localFile.getRevision()) {
 					// File updated
 					// renamed file?
 					logger.info("Updating file " + localFile);
-					GDriveFile patchedLocalFile = GDriveFileFactory
+					FtpGDriveFile patchedLocalFile = FtpGDriveFileFactory
 							.create(change.getFile());
 					patchedLocalFile.setRevision(change.getId());
-					cache.updateFile(patchedLocalFile);
+					cache.addOrUpdateFile(patchedLocalFile);
 				} else {
 					logger.error("Processing ununderstood change :(");
-					GDriveFile patchedLocalFile = GDriveFileFactory
+					FtpGDriveFile patchedLocalFile = FtpGDriveFileFactory
 							.create(change.getFile());
 					logger.error("Updating file " + localFile + " to "
 							+ patchedLocalFile);
 					patchedLocalFile.setRevision(change.getId());
-					cache.updateFile(patchedLocalFile);
+					cache.addOrUpdateFile(patchedLocalFile);
 				}
 			}
 
@@ -198,7 +198,7 @@ public class CacheUpdaterService {
 
 						int limit = 10;
 						for (final String unsynchChild : unsynchChilds) {
-							logger.info("Creating synch task for '"
+							logger.debug("Creating synch task for '"
 									+ unsynchChild + "'...");
 							tasks.add(new Callable<Void>() {
 								String folderId = unsynchChild;
@@ -214,7 +214,7 @@ public class CacheUpdaterService {
 								break;
 							}
 						}
-						logger.info("Executing " + tasks.size() + "...");
+						logger.debug("Executing " + tasks.size() + " tasks...");
 						List<Future<Void>> futures = executor.invokeAll(tasks);
 						logger.info("Waiting for all executions to finish...");
 						while (!futures.isEmpty()) {
@@ -257,9 +257,9 @@ public class CacheUpdaterService {
 		if (file == null || file.getLabels().getTrashed()) {
 			cache.deleteFile(fileId);
 		} else {
-			GDriveFile updatedFile = GDriveFileFactory.create(file);
+			FtpGDriveFile updatedFile = FtpGDriveFileFactory.create(file);
 			updatedFile.setRevision(largestChangeId);
-			cache.updateFile(updatedFile);
+			cache.addOrUpdateFile(updatedFile);
 		}
 	}
 
@@ -277,12 +277,13 @@ public class CacheUpdaterService {
 			// esos machaquen estos
 			long largestChangeId = gmodel.getLargestChangeId(-1);
 
-			GDriveFile remoteFile = null;
+			FtpGDriveFile remoteFile = null;
 
 			if (folderId.equals("root")) {
 				remoteFile = cache.getFile("root");
 			} else {
-				remoteFile = GDriveFileFactory.create(gmodel.getFile(folderId));
+				remoteFile = FtpGDriveFileFactory.create(gmodel
+						.getFile(folderId));
 				if (remoteFile == null
 						|| remoteFile.getLabels().contains("trashed")) {
 					// TODO: if exists maybe?
@@ -303,11 +304,12 @@ public class CacheUpdaterService {
 
 			{
 				// Local folder only to this context and to check revision
-				GDriveFile localFolder = cache.getFile(folderId);
+				FtpGDriveFile localFolder = cache.getFile(folderId);
 				if (localFolder == null) {
-					logger.info("Adding folder '" + folderId + "'");
+					logger.info("Adding folder '" + remoteFile.getName() + "'");
 				} else if (localFolder.getRevision() < largestChangeId) {
-					logger.info("Updating folder '" + folderId + "'");
+					logger.info("Updating folder '" + remoteFile.getName()
+							+ "'");
 					remoteFile.setRevision(largestChangeId);
 				} else {
 					logger.warn("Folder '" + folderId + "' already updated");
@@ -317,20 +319,20 @@ public class CacheUpdaterService {
 
 			logger.debug("Recreating childs for folder '" + folderId + "'");
 
-			List<GDriveFile> newLocalChilds = GDriveFileFactory.create(
+			List<FtpGDriveFile> newLocalChilds = FtpGDriveFileFactory.create(
 					gmodel.list(folderId), 0);
 			if (newLocalChilds == null) {
 				logger.warn("File deleted remotely while requesting list?");
 				cache.deleteFile(folderId);
 				return;
 			} else {
-				for (GDriveFile file : newLocalChilds) {
+				for (FtpGDriveFile file : newLocalChilds) {
 					if (!file.isDirectory())
 						file.setRevision(largestChangeId);
 				}
 			}
 
-			logger.info("Adding childs for '" + remoteFile.getName() + "':"
+			logger.debug("Adding childs for '" + remoteFile.getName() + "':"
 					+ newLocalChilds);
 			cache.updateChilds(remoteFile, newLocalChilds);
 		} catch (Exception e) {

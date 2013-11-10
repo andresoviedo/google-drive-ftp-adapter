@@ -6,7 +6,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.andresoviedo.apps.gdrive_ftp_adapter.Main;
@@ -24,7 +26,52 @@ import org.apache.ftpserver.ftplet.FtpFile;
  * @author Jens Heidrich
  * @version $Id: JFSGDriveFile.java,v 1.15 2009/10/02 08:21:19 heidrich Exp $
  */
-public class GDriveFile implements FtpFile, Serializable, Cloneable {
+public class FtpGDriveFile implements FtpFile, Serializable, Cloneable {
+
+	public static enum MIME_TYPE {
+
+		GOOGLE_AUDIO("application/vnd.google-apps.audio", "audio"), GOOGLE_DOC(
+				"application/vnd.google-apps.document", "Google Docs"), GOOGLE_DRAW(
+				"application/vnd.google-apps.drawing", "Google Drawing"), GOOGLE_FILE(
+				"application/vnd.google-apps.file", "Google  Drive file"), GOOGLE_FOLDER(
+				"application/vnd.google-apps.folder", "Google  Drive folder"), GOOGLE_FORM(
+				"application/vnd.google-apps.form", "Google  Forms"), GOOGLE_FUSION(
+				"application/vnd.google-apps.fusiontable",
+				"Google  Fusion Tables"), GOOGLE_PHOTO(
+				"application/vnd.google-apps.photo", "photo"), GOOGLE_SLIDE(
+				"application/vnd.google-apps.presentation", "Google  Slides"), GOOGLE_PPT(
+				"application/vnd.google-apps.script", "Google  Apps Scripts"), GOOGLE_SITE(
+				"application/vnd.google-apps.sites", "Google  Sites"), GOOGLE_SHEET(
+				"application/vnd.google-apps.spreadsheet", "Google  Sheets"), GOOGLE_UNKNOWN(
+				"application/vnd.google-apps.unknown", "unknown"), GOOGLE_VIDEO(
+				"application/vnd.google-apps.video", "video");
+
+		String value;
+		String desc;
+		static Map<String, String> list = new HashMap<>();
+
+		MIME_TYPE(String value, String desc) {
+			this.value = value;
+			this.desc = desc;
+		}
+
+		public String getValue() {
+			return value;
+		}
+
+		public String getDesc() {
+			return desc;
+		}
+
+		public static MIME_TYPE parse(String mimeType) {
+			for (MIME_TYPE a : MIME_TYPE.values()) {
+				if (a.getValue().equals(mimeType)) {
+					return a;
+				}
+			}
+			return null;
+		}
+	};
 
 	private static final long serialVersionUID = 1L;
 
@@ -38,6 +85,8 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 
 	private String md5Checksum;
 
+	private long lastModified;
+
 	private long revision;
 
 	// TODO: Guardar el mimeType?
@@ -49,7 +98,7 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 
 	/** ******************************************************** */
 
-	public static Log logger = LogFactory.getLog(GDriveFile.class);
+	public static Log logger = LogFactory.getLog(FtpGDriveFile.class);
 
 	private transient Controller controller;
 
@@ -61,13 +110,21 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 
 	private transient String path;
 
+	/**
+	 * Because a file can have multiple parents, this instance could be
+	 * duplicated. Current parent so, is the link to the selected container.
+	 */
+	private transient FtpGDriveFile currentParent;
+
 	private FtpFileSystemView fileSystem;
 
-	public GDriveFile() {
+	private boolean exists;
+
+	public FtpGDriveFile() {
 		this("");
 	}
 
-	public GDriveFile(String name) {
+	public FtpGDriveFile(String name) {
 		this.name = name;
 		init();
 	}
@@ -94,7 +151,7 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 	 *            The relative path of the JFS file starting from the root JFS
 	 *            file.
 	 */
-	public GDriveFile(Set<String> parents, String name) {
+	public FtpGDriveFile(Set<String> parents, String name) {
 		this(name);
 		this.parents = parents;
 	}
@@ -155,13 +212,12 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 	 * @see JFSFile#setLastModified(long)
 	 */
 	public final boolean setLastModified(long time) {
-		final GDriveFile newParam = new GDriveFile(null);
-		newParam.revision = time;
-		return controller.updateFile(getId(), newParam);
+		return controller.updateLastModified(this, time);
 	}
 
-	public final boolean setLastModified2(long time) {
-		this.revision = time;
+	public final boolean setLastModifiedImpl(long time) {
+		// TODO: remove boolean return
+		this.lastModified = time;
 		return true;
 	}
 
@@ -179,7 +235,7 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 	}
 
 	public long getLastModified() {
-		return revision;
+		return lastModified;
 	}
 
 	public void setMimeType(String mimeType) {
@@ -235,10 +291,13 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 		return !isDirectory();
 	}
 
+	public void setExists(boolean exists) {
+		this.exists = exists;
+	}
+
 	@Override
 	public boolean doesExist() {
-		// TODO: cuando no?
-		return true;
+		return exists;
 	}
 
 	@Override
@@ -298,18 +357,19 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 
 	@Override
 	public Object clone() {
-		GDriveFile ret = new GDriveFile(getName());
+		FtpGDriveFile ret = new FtpGDriveFile(getName());
 		ret.setId(getId());
 		ret.setName(getName());
 		ret.setDirectory(isDirectory());
 		ret.setLength(getLength());
-		ret.setLastModified2(getLastModified());
+		ret.setLastModifiedImpl(getLastModified());
 		ret.setMd5Checksum(getMd5Checksum());
 		ret.setRevision(getRevision());
 		ret.setParents(getParents());
 
 		ret.setMimeType(mimeType);
 		ret.setPath(getPath());
+		ret.setExists(doesExist());
 		ret.setFileSystemView(getFileSystemView());
 		return ret;
 	}
@@ -320,6 +380,14 @@ public class GDriveFile implements FtpFile, Serializable, Cloneable {
 
 	public void setFileSystemView(FtpFileSystemView ftpFileSystemView) {
 		this.fileSystem = ftpFileSystemView;
+	}
+
+	public FtpGDriveFile getCurrentParent() {
+		return currentParent;
+	}
+
+	public void setCurrentParent(FtpGDriveFile currentParent) {
+		this.currentParent = currentParent;
 	}
 
 	// 0000000000000000000000000000000000000000000000000

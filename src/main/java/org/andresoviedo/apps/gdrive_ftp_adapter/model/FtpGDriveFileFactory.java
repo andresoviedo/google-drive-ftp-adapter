@@ -8,14 +8,14 @@ import java.util.List;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.ParentReference;
 
-public final class GDriveFileFactory {
+public final class FtpGDriveFileFactory {
 
-	public static GDriveFile create(File googleFile) {
+	public static FtpGDriveFile create(File googleFile) {
 		if (googleFile == null)
 			return null;
-		GDriveFile newFile = new GDriveFile(getFilename(googleFile));
+		FtpGDriveFile newFile = new FtpGDriveFile(getFilename(googleFile));
 		newFile.setId(googleFile.getId());
-		newFile.setLastModified2(getLastModified(googleFile));
+		newFile.setLastModifiedImpl(getLastModified(googleFile));
 		newFile.setLength(getFileSize(googleFile));
 		newFile.setDirectory(isDirectory(googleFile));
 		newFile.setMd5Checksum(googleFile.getMd5Checksum());
@@ -35,10 +35,11 @@ public final class GDriveFileFactory {
 		return newFile;
 	}
 
-	public static List<GDriveFile> create(List<File> googleFiles, long revision) {
-		List<GDriveFile> ret = new ArrayList<>(googleFiles.size());
+	public static List<FtpGDriveFile> create(List<File> googleFiles,
+			long revision) {
+		List<FtpGDriveFile> ret = new ArrayList<>(googleFiles.size());
 		for (File child : googleFiles) {
-			GDriveFile localFile = create(child);
+			FtpGDriveFile localFile = create(child);
 			localFile.setRevision(revision);
 			ret.add(localFile);
 		}
@@ -71,6 +72,13 @@ public final class GDriveFileFactory {
 		}
 
 	}
+
+	// public static FtpGDriveFile create(File remoteFile, long
+	// largestChangedId) {
+	// FtpGDriveFile file = create(remoteFile);
+	// file.setRevision(largestChangedId);
+	// return file;
+	// }
 
 	private static long getFileSize(File googleFile) {
 		return googleFile.getFileSize() == null ? 0 : googleFile.getFileSize();

@@ -5,12 +5,16 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Date;
 
 import org.andresoviedo.apps.gdrive_ftp_adapter.cache.CacheUpdaterService;
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.GDriveFile;
+import org.andresoviedo.apps.gdrive_ftp_adapter.model.FtpGDriveFile;
+import org.andresoviedo.apps.gdrive_ftp_adapter.service.GoogleService;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
+import com.google.api.client.util.DateTime;
 
 /**
  * TODO:
@@ -26,13 +30,13 @@ public final class Controller {
 
 	private static Controller instance;
 
-	private GoogleModel gcontroller;
+	private GoogleService googleDriveService;
 
 	private CacheUpdaterService updaterService;
 
 	private Controller() {
 		instance = this;
-		gcontroller = GoogleModel.getInstance();
+		googleDriveService = GoogleService.getInstance();
 		updaterService = CacheUpdaterService.getInstance();
 	}
 
@@ -46,39 +50,75 @@ public final class Controller {
 	public void init() {
 	}
 
-	public boolean renameFile(GDriveFile file, String newName) {
+	public boolean renameFile(FtpGDriveFile file, String newName) {
 		logger.info("Renaming file " + file.getName() + " to " + newName);
-		boolean ret = updateFile(file.getId(), new GDriveFile(newName));
-		if (ret)
-			updaterService.updateNow(file.getId());
-		return ret;
+		return touch(file, new FtpGDriveFile(newName));
 	}
 
-	public boolean updateFile(String fileId, GDriveFile patch) {
-		logger.info("Patching file " + fileId + " with " + patch);
-		boolean ret = gcontroller.updateFile(fileId, patch, 3) != null;
-		if (ret)
-			updaterService.updateNow(fileId);
-		return ret;
+	public boolean updateLastModified(FtpGDriveFile ftpGDriveFile, long time) {
+		logger.info("Updating last modification date for "
+				+ ftpGDriveFile.getName() + " to " + new Date(time));
+		FtpGDriveFile patch = new FtpGDriveFile(null);
+		patch.setLastModifiedImpl(time);
+		return touch(ftpGDriveFile, patch);
+	}
+
+	private boolean touch(FtpGDriveFile ftpFile, FtpGDriveFile patch) {
+		logger.info("Patching file " + ftpFile.getName() + " with " + patch);
+		com.google.api.services.drive.model.File googleFile = googleDriveService
+				.getFile(ftpFile.getId());
+		if (googleFile == null) {
+			logger.error("File '" + ftpFile.getName()
+					+ "' doesn't exists remotely. Impossible to rename");
+			return false;
+		}
+		if (patch.getName() == null && patch.getLastModified() <= 0) {
+			throw new IllegalArgumentException(
+					"Patching doesn't contain valid name nor modified date");
+		}
+		if (patch.getName() != null) {
+			googleFile.setTitle(patch.getName());
+		}
+		if (patch.getLastModified() > 0) {
+			googleFile.setModifiedDate(new DateTime(patch.getLastModified()));
+		}
+
+		com.google.api.services.drive.model.File googleFileUpdated = googleDriveService
+				.touchFile(ftpFile.getId(), googleFile);
+		if (googleFileUpdated != null) {
+			updaterService.updateNow(googleFileUpdated.getId());
+			return true;
+		}
+		return false;
 	}
 
 	public boolean trashFile(String fileId) {
 		logger.info("Deleting file " + fileId + "...");
-		boolean ret = gcontroller.trashFile(fileId, 3) != null;
+		boolean ret = googleDriveService.trashFile(fileId, 3) != null;
 		if (ret)
 			updaterService.updateNow(fileId);
 		return ret;
 	}
 
-	public boolean mkdir(GDriveFile gDriveFile) {
-		if (!gDriveFile.isDirectory())
-			throw new IllegalArgumentException("File " + gDriveFile.getName()
-					+ " is a regular file");
-		return false;
+	public boolean mkdir(FtpGDriveFile ftpGDriveFile) {
+		if (ftpGDriveFile.getName().contains(".")
+				|| ftpGDriveFile.getName().contains("/")) {
+			throw new IllegalArgumentException(
+					"Filename cannot contain dots or slash chars");
+		}
+		com.google.api.services.drive.model.File newDir = googleDriveService
+				.mkdir(ftpGDriveFile.getCurrentParent().getId(),
+						ftpGDriveFile.getName());
+		boolean ret = newDir != null;
+		if (ret)
+			updaterService.updateNow(newDir.getId());
+		return ret;
 	}
 
-	public InputStream createInputStream(GDriveFile gDriveFile, long offset) {
-		File transferFile = gcontroller.downloadFile(gDriveFile);
+	// TODO: Implement offset
+	public InputStream createInputStream(FtpGDriveFile ftpGDriveFile,
+			long offset) {
+		File transferFile = googleDriveService.downloadFile(ftpGDriveFile);
 		if (transferFile == null) {
 			throw new IllegalStateException(
 					"No se dispone de la URL de descarga");
@@ -95,41 +135,37 @@ public final class Controller {
 
 	}
 
-	public OutputStream createOutputStream(final GDriveFile gDriveFile,
+	public OutputStream createOutputStream(final FtpGDriveFile ftpGDriveFile,
 			long offset) {
-		if (gDriveFile.isDirectory()) {
+		if (ftpGDriveFile.isDirectory()) {
 			throw new IllegalArgumentException(
 					"createOutputStream en directorio?");
 		}
 
-		if (gDriveFile.getTransferFile() == null) {
-			throw new IllegalStateException(
-					"No se dispone de la URL de descarga");
-		}
-
-		com.google.api.services.drive.model.File googleFile = gcontroller
-				.getFile(gDriveFile.getId());
-		if (googleFile != null) {
-			throw new IllegalArgumentException("El fichero ya existe");
-		}
-
-		gcontroller.updateDownloadUrl(gDriveFile);
-
 		OutputStream transferFileOutputStream;
 		try {
-			final java.io.File transferFile = File.createTempFile(
-					"gdrive-synch-", ".upload");
+			final File transferFile = File.createTempFile("gdrive-synch-",
+					".upload." + ftpGDriveFile.getName());
+			ftpGDriveFile.setTransferFile(transferFile);
 			transferFileOutputStream = new FileOutputStream(transferFile) {
 				@Override
 				public void close() throws IOException {
+					com.google.api.services.drive.model.File updatedGoogleFile = null;
 					super.close();
 					try {
-						if (gcontroller.uploadFile(gDriveFile) == null) {
-							throw new RuntimeException(
-									"Falló la subida del fichero " + gDriveFile);
+						if (!ftpGDriveFile.doesExist()) {
+							// New file
+							updatedGoogleFile = googleDriveService
+									.uploadFile(ftpGDriveFile);
+						} else {
+							// Update file
+							updatedGoogleFile = googleDriveService
+									.uploadFile(ftpGDriveFile);
 						}
+						updaterService.updateNow(updatedGoogleFile.getId());
 					} finally {
-						FileUtils.deleteQuietly(transferFile);
+						FileUtils
+								.deleteQuietly(ftpGDriveFile.getTransferFile());
 					}
 				}
 			};
