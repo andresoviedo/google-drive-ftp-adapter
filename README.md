@@ -18,7 +18,7 @@ Features:
 
 
 Run it:
-* Compile maven project and then run the Main.class.  
+* Compile maven project and then run the 'org.andresoviedo.apps.gdrive_ftp_adapter.Main.class'.  
 * Use ftp://user:user@localhost/ from your application to to connect to your google drive.  
 * A Google authorization dialog will ask you to allow application to acces your files. Click "OK".
 
