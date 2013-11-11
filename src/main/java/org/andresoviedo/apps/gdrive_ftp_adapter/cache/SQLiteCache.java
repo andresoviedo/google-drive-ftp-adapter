@@ -1,5 +1,6 @@
 package org.andresoviedo.apps.gdrive_ftp_adapter.cache;
 
+import java.io.File;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -75,9 +76,19 @@ public final class SQLiteCache implements Cache {
 	}
 
 	private void initDAO() {
+
+		// initialize the data store factory
+		File dataDir = new File("data/cache");
+		if (!dataDir.exists()) {
+			if (!dataDir.mkdirs()) {
+				throw new RuntimeException("Could not create database folder "
+						+ dataDir.getAbsolutePath());
+			}
+		}
+
 		dataSource = new BasicDataSource();
 		dataSource.setDriverClassName("org.sqlite.JDBC");
-		dataSource.setUrl("jdbc:sqlite:gdrive.db");
+		dataSource.setUrl("jdbc:sqlite:file:data/cache/gdrive.db");
 		// dataSource.setMaxActive(1);
 		dataSource.setMaxWait(60000);
 

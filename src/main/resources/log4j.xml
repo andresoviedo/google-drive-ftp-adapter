@@ -10,11 +10,14 @@
 	</appender>
 
 	<logger name="org.apache.ftpserver.listener.nio.FtpLoggingFilter"
-		level="warn" additivity="false" />
+		additivity="false">
+		<level value="warn" />
+	</logger>
 
-	<logger name="org.apache.ftpserver.impl.PassivePorts" level="error"
-		additivity="false" />
-
+	<logger name="org.apache.ftpserver.impl.PassivePorts"
+		additivity="false">
+		<level value="error" />
+	</logger>
 
 	<root>
 		<priority value="info" />

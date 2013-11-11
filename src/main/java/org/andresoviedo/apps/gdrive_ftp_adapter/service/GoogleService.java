@@ -68,11 +68,11 @@ public class GoogleService {
 	 * is {@code null} or blank, the application will log a warning. Suggested
 	 * format is "MyCompany-ProductName/1.0".
 	 */
-	private static final String APPLICATION_NAME = "gdrive-synch";
+	private static final String APPLICATION_NAME = "google-drive-ftp-adapter";
 
 	/** Directory to store user credentials. */
 	private static final java.io.File DATA_STORE_DIR = new java.io.File(
-			System.getProperty("user.home"), ".store/pk1");
+			"data/google/pk1");
 
 	/**
 	 * Global instance of the {@link DataStoreFactory}. The best practice is to
