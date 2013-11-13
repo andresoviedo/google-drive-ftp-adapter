@@ -437,7 +437,7 @@ public class GoogleService {
 			return file;
 		} catch (IOException e) {
 			throw new RuntimeException(
-					"No se pudo subir/actualizar el fichero " + jfsgFile);
+					"No se pudo subir/actualizar el fichero " + jfsgFile, e);
 		}
 	}
 
