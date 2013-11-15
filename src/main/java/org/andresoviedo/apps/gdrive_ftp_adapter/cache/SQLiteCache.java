@@ -261,9 +261,9 @@ public final class SQLiteCache implements Cache {
 	// }
 	// }
 
-	private void executeInTransaction(final List<String> queries,
+	private int executeInTransaction(final List<String> queries,
 			final List<Object[]> args) {
-		jdbcTemplate.execute(new ConnectionCallback<Integer>() {
+		return jdbcTemplate.execute(new ConnectionCallback<Integer>() {
 			@Override
 			public Integer doInConnection(Connection connection)
 					throws SQLException, DataAccessException {
@@ -435,14 +435,13 @@ public final class SQLiteCache implements Cache {
 	// }
 
 	public int deleteFile(String id) {
-		w.lock();
-		try {
-			return jdbcTemplate.update("delete from " + TABLE_FILES
-					+ " where id=?", new Object[] { id });
-		} finally {
-			w.unlock();
-		}
-
+		List<String> queries = new ArrayList<String>();
+		List<Object[]> args = new ArrayList<Object[]>();
+		queries.add("delete from " + TABLE_FILES + " where id=?");
+		queries.add("delete from " + TABLE_CHILDS + " where parentId=?");
+		args.add(new Object[] { id });
+		args.add(new Object[] { id });
+		return executeInTransaction(queries, args);
 	}
 
 	public long getRevision() {

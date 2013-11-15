@@ -101,8 +101,7 @@ public final class Controller {
 	}
 
 	public boolean mkdir(FtpGDriveFile ftpGDriveFile) {
-		if (ftpGDriveFile.getName().contains(".")
-				|| ftpGDriveFile.getName().contains("/")) {
+		if (ftpGDriveFile.getName().contains(FtpFileSystemView.FILE_SEPARATOR)) {
 			throw new IllegalArgumentException(
 					"Filename cannot contain dots or slash chars");
 		}

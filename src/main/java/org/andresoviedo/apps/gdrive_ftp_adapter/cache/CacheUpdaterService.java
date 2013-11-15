@@ -127,12 +127,13 @@ public class CacheUpdaterService {
 
 			private void processChange(String fileId, Change change) {
 				final FtpGDriveFile localFile = cache.getFile(fileId);
-				logger.info("Processing changes for file " + localFile + "...");
 				if (change.getDeleted()
 						|| change.getFile().getLabels().getTrashed()) {
 					if (localFile != null) {
+						logger.info("File deleted remotely "
+								+ localFile.getName() + "...");
 						int deletedFiles = cache.deleteFile(localFile.getId());
-						logger.info("deleted files " + deletedFiles);
+						logger.info("Total affected files " + deletedFiles);
 					}
 					return;
 				}

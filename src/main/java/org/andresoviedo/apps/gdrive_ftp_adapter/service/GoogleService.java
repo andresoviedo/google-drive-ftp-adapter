@@ -336,11 +336,6 @@ public class GoogleService {
 	}
 
 	public File mkdir(String parentId, String filename) {
-		if (filename.contains(".")) {
-			throw new IllegalArgumentException(
-					"Directory name cannot contain dots");
-		}
-
 		FtpGDriveFile jfsgFile = new FtpGDriveFile(
 				Collections.singleton(parentId), filename);
 		jfsgFile.setDirectory(true);

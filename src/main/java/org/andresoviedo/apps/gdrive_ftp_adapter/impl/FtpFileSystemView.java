@@ -74,7 +74,7 @@ public class FtpFileSystemView implements FileSystemFactory, FileSystemView {
 			FtpGDriveFile lastKnownFile = getFileByAbsolutePath(path);
 			if (lastKnownFile != null && lastKnownFile.isDirectory()) {
 				currentDir = lastKnownFile;
-				currentDir.setCurrentParent(lastKnownFile);
+				currentDir.setCurrentParent(lastKnownFile); // TODO: fix this
 				return true;
 			}
 
@@ -95,7 +95,7 @@ public class FtpFileSystemView implements FileSystemFactory, FileSystemView {
 				return currentDir;
 			}
 
-			return originalPath.contains("/") ? getFileByAbsolutePath(name)
+			return originalPath.contains(FILE_SEPARATOR) ? getFileByAbsolutePath(name)
 					: getFileByNameEncoded(currentDir, name);
 		} catch (IllegalArgumentException e) {
 			logger.error(e.getMessage());
@@ -142,8 +142,8 @@ public class FtpFileSystemView implements FileSystemFactory, FileSystemView {
 					throw new IllegalArgumentException(
 							"Invalid file name. File name can't contains reserved tokens");
 				}
-				logger.info(folder.getPath() + "/" + encodedName
-						+ " doesn't exist. Creating new file...");
+				logger.info("Preparing new file " + folder.getPath()
+						+ FILE_SEPARATOR + encodedName);
 				ret = new FtpGDriveFile(Collections.singleton(folder.getId()),
 						encodedName);
 			} else {
@@ -153,7 +153,7 @@ public class FtpFileSystemView implements FileSystemFactory, FileSystemView {
 			// Decode
 			String[] filenameAndIdAndExt = encodedName
 					.split(FtpFileSystemView.DUPLICATED_FILE_TOKEN);
-			logger.info("Searching path: '" + folder.getPath() + "/"
+			logger.info("Searching path: '" + folder.getPath() + FILE_SEPARATOR
 					+ filenameAndIdAndExt[0] + "' ('" + filenameAndIdAndExt[1]
 					+ "')...");
 			ret = model.getFile(filenameAndIdAndExt[1]);
@@ -164,8 +164,8 @@ public class FtpFileSystemView implements FileSystemFactory, FileSystemView {
 					throw new IllegalArgumentException(
 							"Invalid file name. File name can't contains reserved tokens");
 				}
-				logger.info("Folder doesn't exist '" + folder.getPath() + "/"
-						+ filenameAndIdAndExt[0] + "'. Creating new file...");
+				logger.info("Preparing new file " + folder.getPath()
+						+ FILE_SEPARATOR + filenameAndIdAndExt[0]);
 				ret = new FtpGDriveFile(Collections.singleton(folder.getId()),
 						encodedName);
 			} else {
@@ -185,12 +185,16 @@ public class FtpFileSystemView implements FileSystemFactory, FileSystemView {
 	}
 
 	private String normalize(String path) {
+		// We want all paths to be like FtpFileSystemView.FILE_SEPARATOR
+		path = path.replaceAll("\\\\", FtpFileSystemView.FILE_SEPARATOR);
+
 		// TODO: revisar esta caca
-		while (path.startsWith("/") || path.startsWith("\\")
+		while (path.startsWith(FtpFileSystemView.FILE_SEPARATOR)
 				|| path.startsWith(".")) {
 			path = path.substring(1);
 		}
-		while (path.endsWith("/") || path.endsWith("\\") || path.endsWith(".")) {
+		while (path.endsWith(FtpFileSystemView.FILE_SEPARATOR)
+				|| path.endsWith(".")) {
 			path = path.substring(0, path.length() - 1);
 		}
 
