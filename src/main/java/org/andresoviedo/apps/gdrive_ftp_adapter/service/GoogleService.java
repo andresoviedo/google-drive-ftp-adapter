@@ -221,6 +221,11 @@ public class GoogleService {
 			throw new RuntimeException(e);
 		} catch (Exception e) {
 			if (retry > 0) {
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e1) {
+					throw new RuntimeException(e1);
+				}
 				logger.info("retrying...");
 				return list_impl(id, --retry);
 			}
@@ -245,6 +250,11 @@ public class GoogleService {
 			throw new RuntimeException(e);
 		} catch (Exception e) {
 			if (retry > 0) {
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e1) {
+					throw new RuntimeException(e1);
+				}
 				logger.info("retrying...");
 				return getFile_impl(fileId, --retry);
 			}
@@ -339,7 +349,7 @@ public class GoogleService {
 		FtpGDriveFile jfsgFile = new FtpGDriveFile(
 				Collections.singleton(parentId), filename);
 		jfsgFile.setDirectory(true);
-		return uploadFile(jfsgFile);
+		return uploadFile(jfsgFile, 3);
 	}
 
 	/**
@@ -360,6 +370,10 @@ public class GoogleService {
 	 * @return Inserted file metadata if successful, {@code null} otherwise.
 	 */
 	public File uploadFile(FtpGDriveFile jfsgFile) {
+		return uploadFile(jfsgFile, 3);
+	}
+
+	private File uploadFile(FtpGDriveFile jfsgFile, int retry) {
 		try {
 			File file = null;
 			FileContent mediaContent = null;
@@ -431,6 +445,14 @@ public class GoogleService {
 
 			return file;
 		} catch (IOException e) {
+			if (retry > 0) {
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e1) {
+					throw new RuntimeException(e1);
+				}
+				return uploadFile(jfsgFile, --retry);
+			}
 			throw new RuntimeException(
 					"No se pudo subir/actualizar el fichero " + jfsgFile, e);
 		}
@@ -449,6 +471,11 @@ public class GoogleService {
 			ret = changes.getLargestChangeId();
 		} catch (IOException e) {
 			if (retry > 0) {
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e1) {
+					throw new RuntimeException(e1);
+				}
 				return getLargestChangeIdImpl(startLargestChangeId, --retry);
 			}
 			throw new RuntimeException(e);
@@ -490,6 +517,11 @@ public class GoogleService {
 			// throw new RuntimeException(e);
 		} catch (Exception e) {
 			if (retry > 0) {
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e1) {
+					throw new RuntimeException(e1);
+				}
 				logger.info("retrying...");
 				return retrieveAllChangesImpl(startChangeId, --retry);
 			}
@@ -512,6 +544,11 @@ public class GoogleService {
 			return updatedFile;
 		} catch (Exception e) {
 			if (retry > 0) {
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e1) {
+					throw new RuntimeException(e1);
+				}
 				logger.info("retrying...");
 				touchFile(fileId, patch, --retry);
 			}
