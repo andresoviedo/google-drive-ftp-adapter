@@ -85,6 +85,13 @@ public class CacheUpdaterService {
 		synch(fileId);
 	}
 
+	public void updateNow(File googleFileUpdated) {
+		FtpGDriveFile updatedFile = FtpGDriveFileFactory
+				.create(googleFileUpdated);
+		updatedFile.setRevision(cache.getRevision());
+		cache.addOrUpdateFile(updatedFile);
+	}
+
 	public void stop() {
 		executor.shutdownNow();
 	}
@@ -105,20 +112,26 @@ public class CacheUpdaterService {
 			}
 
 			private void checkForRemoteChanges() {
+
 				long largestChangeId = cache.getRevision();
 				logger.info("Largest changeId found in local database "
 						+ largestChangeId);
 				if (largestChangeId > 0) {
+					List<Change> googleChanges;
+					while (!(googleChanges = gmodel
+							.getAllChanges(largestChangeId + 1)).isEmpty()) {
 
-					List<Change> googleChanges = gmodel
-							.getAllChanges(largestChangeId + 1);
+						// TODO: revisar la sincronización de esto cuando theads
+						// > 1
+						logger.info("Detected " + googleChanges.size()
+								+ " changes");
 
-					// TODO: revisar la sincronización de esto cuando theads
-					// > 1
-					logger.info("Detected " + googleChanges.size() + " changes");
-
-					for (Change change : googleChanges) {
-						processChange(change.getFileId(), change);
+						for (Change change : googleChanges) {
+							processChange(change.getFileId(), change);
+						}
+						largestChangeId = cache.getRevision();
+						logger.info("Largest changeId found in local database "
+								+ largestChangeId);
 					}
 
 					logger.info("No more changes to process.");
@@ -134,7 +147,14 @@ public class CacheUpdaterService {
 								+ localFile.getName() + "...");
 						int deletedFiles = cache.deleteFile(localFile.getId());
 						logger.info("Total affected files " + deletedFiles);
+
 					}
+					// TODO: review this. must update some file to keep
+					// track of last change (better a file on disk)?
+					FtpGDriveFile rootFile = cache.getFile("root");
+					rootFile.setRevision(change.getId());
+					cache.updateFile(rootFile);
+
 					return;
 				}
 
@@ -252,7 +272,7 @@ public class CacheUpdaterService {
 	 */
 	public void synch(String fileId) {
 		logger.info("Synching " + fileId + "...");
-		long largestChangeId = gmodel.getLargestChangeId(-1);
+		long largestChangeId = cache.getRevision();
 		File file = gmodel.getFile(fileId);
 
 		if (file == null || file.getLabels().getTrashed()) {

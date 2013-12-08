@@ -7,6 +7,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Date;
 
+import org.andresoviedo.apps.gdrive_ftp_adapter.Main;
+import org.andresoviedo.apps.gdrive_ftp_adapter.cache.Cache;
 import org.andresoviedo.apps.gdrive_ftp_adapter.cache.CacheUpdaterService;
 import org.andresoviedo.apps.gdrive_ftp_adapter.model.FtpGDriveFile;
 import org.andresoviedo.apps.gdrive_ftp_adapter.service.GoogleService;
@@ -34,10 +36,13 @@ public final class Controller {
 
 	private CacheUpdaterService updaterService;
 
+	private Cache cache;
+
 	private Controller() {
 		instance = this;
 		googleDriveService = GoogleService.getInstance();
 		updaterService = CacheUpdaterService.getInstance();
+		cache = Main.getInstance().getCache();
 	}
 
 	public static Controller getInstance() {
@@ -65,13 +70,18 @@ public final class Controller {
 
 	private boolean touch(FtpGDriveFile ftpFile, FtpGDriveFile patch) {
 		logger.info("Patching file " + ftpFile.getName() + " with " + patch);
-		com.google.api.services.drive.model.File googleFile = googleDriveService
-				.getFile(ftpFile.getId());
-		if (googleFile == null) {
-			logger.error("File '" + ftpFile.getName()
-					+ "' doesn't exists remotely. Impossible to rename");
-			return false;
-		}
+		// com.google.api.services.drive.model.File googleFile =
+		// googleDriveService
+		// .getFile(ftpFile.getId());
+
+		com.google.api.services.drive.model.File googleFile = new com.google.api.services.drive.model.File();
+		googleFile.setId(ftpFile.getId());
+
+		// if (googleFile == null) {
+		// logger.error("File '" + ftpFile.getName()
+		// + "' doesn't exists remotely. Impossible to rename");
+		// return false;
+		// }
 		if (patch.getName() == null && patch.getLastModified() <= 0) {
 			throw new IllegalArgumentException(
 					"Patching doesn't contain valid name nor modified date");
@@ -86,7 +96,7 @@ public final class Controller {
 		com.google.api.services.drive.model.File googleFileUpdated = googleDriveService
 				.touchFile(ftpFile.getId(), googleFile);
 		if (googleFileUpdated != null) {
-			updaterService.updateNow(googleFileUpdated.getId());
+			updaterService.updateNow(googleFileUpdated);
 			return true;
 		}
 		return false;
@@ -96,7 +106,7 @@ public final class Controller {
 		logger.info("Deleting file " + fileId + "...");
 		boolean ret = googleDriveService.trashFile(fileId, 3) != null;
 		if (ret)
-			updaterService.updateNow(fileId);
+			cache.deleteFile(fileId);
 		return ret;
 	}
 

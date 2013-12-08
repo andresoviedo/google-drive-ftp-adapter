@@ -525,8 +525,7 @@ public class GoogleService {
 				logger.info("retrying...");
 				return retrieveAllChangesImpl(startChangeId, --retry);
 			}
-			e.printStackTrace();
-			return null;
+			throw new RuntimeException(e);
 		}
 	}
 

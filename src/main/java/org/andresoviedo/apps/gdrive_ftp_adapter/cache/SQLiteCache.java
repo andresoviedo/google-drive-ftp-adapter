@@ -6,6 +6,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -288,12 +289,18 @@ public final class SQLiteCache implements Cache {
 					connection.commit();
 					// connection.createStatement().execute("commit transaction");
 					return ret;
+				} catch (Exception ex) {
+					logger.error("Error executing transaction. Details:");
+					for (int i = 0; i < queries.size(); i++) {
+						logger.error("Query '" + queries.get(i) + "' args '"
+								+ Arrays.toString(args.get(i)) + "' ");
+					}
+					throw ex;
 				} finally {
 					try {
 						connection.setAutoCommit(true);
 					} catch (Throwable e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
+						throw new RuntimeException(e);
 					}
 					w.unlock();
 				}
