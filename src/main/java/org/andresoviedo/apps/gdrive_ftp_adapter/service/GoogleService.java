@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Properties;
 import java.util.Set;
 
 import org.andresoviedo.apps.gdrive_ftp_adapter.model.FtpGDriveFile;
@@ -71,14 +72,13 @@ public class GoogleService {
 	private static final String APPLICATION_NAME = "google-drive-ftp-adapter";
 
 	/** Directory to store user credentials. */
-	private static final java.io.File DATA_STORE_DIR = new java.io.File(
-			"data/google/pk1");
+	private java.io.File DATA_STORE_DIR;
 
 	/**
 	 * Global instance of the {@link DataStoreFactory}. The best practice is to
 	 * make it a single globally shared instance across your application.
 	 */
-	private static FileDataStoreFactory dataStoreFactory;
+	private FileDataStoreFactory dataStoreFactory;
 
 	private static GoogleService instance;
 
@@ -87,25 +87,22 @@ public class GoogleService {
 			.getDefaultInstance();
 
 	/** Global instance of the HTTP transport. */
-	private static final HttpTransport httpTransport;
+	private  final HttpTransport httpTransport;
 
 	static {
-		try {
-			// initialize the transport
-			httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-
-			// initialize the data store factory
-			dataStoreFactory = new FileDataStoreFactory(DATA_STORE_DIR);
-
-		} catch (Exception e) {
-			throw new RuntimeException(
-					"No se pudo inicializar la API de Google");
+		
+	}
+	
+	public static GoogleService getInstance() {
+		if (instance == null){
+			throw new IllegalStateException("GoogleService not yet initialized");
 		}
+		return instance;
 	}
 
-	public static GoogleService getInstance() {
+	public static GoogleService getInstance(Properties configuration) {
 		if (instance == null) {
-			instance = new GoogleService();
+			instance = new GoogleService(configuration);
 		}
 		return instance;
 	}
@@ -118,7 +115,19 @@ public class GoogleService {
 
 	private Drive drive;
 
-	private GoogleService() {
+	private GoogleService(Properties configuration) {
+		DATA_STORE_DIR = new java.io.File("data/google/"+configuration.get("account"));
+		
+		try {
+			// initialize the data store factory
+			dataStoreFactory = new FileDataStoreFactory(DATA_STORE_DIR);
+			// initialize the transport
+			httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+
+		} catch (Exception e) {
+			throw new RuntimeException(
+					"No se pudo inicializar la API de Google");
+		}
 		init();
 	}
 
@@ -373,6 +382,7 @@ public class GoogleService {
 		return uploadFile(jfsgFile, 3);
 	}
 
+	// TODO:  upload with AbstractInputStream 
 	private File uploadFile(FtpGDriveFile jfsgFile, int retry) {
 		try {
 			File file = null;

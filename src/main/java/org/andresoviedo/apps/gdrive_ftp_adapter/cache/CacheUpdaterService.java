@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Properties;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -45,9 +46,9 @@ public class CacheUpdaterService {
 
 	private TimerTask synchPeriodicTask;
 
-	private CacheUpdaterService() {
+	private CacheUpdaterService(Properties configuration) {
 		instance = this;
-		gmodel = GoogleService.getInstance();
+		gmodel = GoogleService.getInstance(configuration);
 		cache = Main.getInstance().getCache();
 		executor = Executors.newFixedThreadPool(4);
 		timer = new Timer(true);
@@ -65,10 +66,17 @@ public class CacheUpdaterService {
 			cache.addOrUpdateFile(rootFile);
 		}
 	}
-
+	
 	public static CacheUpdaterService getInstance() {
 		if (instance == null) {
-			new CacheUpdaterService();
+			throw new IllegalStateException("CacheUpdaterService not yet initialized");
+		}
+		return instance;
+	}
+
+	public static CacheUpdaterService getInstance(Properties configuration) {
+		if (instance == null) {
+			new CacheUpdaterService(configuration);
 		}
 		return instance;
 	}

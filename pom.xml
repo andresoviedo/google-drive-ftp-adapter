@@ -19,8 +19,8 @@
 	</prerequisites>
 
 	<properties>
-		<project.http.version>1.17.0-rc</project.http.version>
-		<project.oauth.version>1.17.0-rc</project.oauth.version>
+		<project.http.version>1.18.0-rc</project.http.version>
+		<project.oauth.version>1.18.0-rc</project.oauth.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 
@@ -86,12 +86,12 @@
 		<dependency>
 			<groupId>com.google.http-client</groupId>
 			<artifactId>google-http-client</artifactId>
-			<version>1.17.0-rc</version>
+			<version>${project.http.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.google.api-client</groupId>
 			<artifactId>google-api-client</artifactId>
-			<version>1.17.0-rc</version>
+			<version>${project.http.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.xerial</groupId>

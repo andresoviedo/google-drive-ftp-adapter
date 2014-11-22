@@ -8,6 +8,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -40,6 +41,8 @@ public final class SQLiteCache implements Cache {
 	private static final String TABLE_CHILDS = "childs";
 
 	private static SQLiteCache instance;
+	
+	private Properties configuration;
 
 	private RowMapper<FtpGDriveFile> rowMapper;
 
@@ -51,14 +54,21 @@ public final class SQLiteCache implements Cache {
 
 	private BasicDataSource dataSource;
 
-	private SQLiteCache() {
-		instance = this;
+	private SQLiteCache(Properties configuration) {
+		this.configuration = configuration; 
 		init();
+	}
+	
+	public static Cache getInstance(Properties configuration) {
+		if (instance == null) {
+			instance = new SQLiteCache(configuration);
+		}
+		return instance;
 	}
 
 	public static SQLiteCache getInstance() {
 		if (instance == null) {
-			instance = new SQLiteCache();
+			throw new IllegalStateException("SQLiteCache not yet initialized");
 		}
 		return instance;
 	}
@@ -79,17 +89,26 @@ public final class SQLiteCache implements Cache {
 	private void initDAO() {
 
 		// initialize the data store factory
-		File dataDir = new File("data/cache");
+		String account = configuration.getProperty("account");
+		if (account.equals("pk1")){
+			// TODO: this should be a file migration process
+			account = "cache";
+		}
+		File dataDir = new File("data"+File.separator+account);
 		if (!dataDir.exists()) {
+			logger.info("Creating cache '"+dataDir+"'...");
 			if (!dataDir.mkdirs()) {
 				throw new RuntimeException("Could not create database folder "
 						+ dataDir.getAbsolutePath());
 			}
 		}
+		
+		String dataFile = "data/"+account+"/gdrive.db";
+		logger.info("Loading database '"+dataFile+"'...");
 
 		dataSource = new BasicDataSource();
 		dataSource.setDriverClassName("org.sqlite.JDBC");
-		dataSource.setUrl("jdbc:sqlite:file:data/cache/gdrive.db");
+		dataSource.setUrl("jdbc:sqlite:file:"+dataFile);
 		// dataSource.setMaxActive(1);
 		dataSource.setMaxWait(60000);
 
@@ -471,5 +490,7 @@ public final class SQLiteCache implements Cache {
 			r.unlock();
 		}
 	}
+
+	
 
 }
