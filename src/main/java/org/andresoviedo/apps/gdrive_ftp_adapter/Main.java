@@ -13,6 +13,8 @@ import org.apache.ftpserver.FtpServerFactory;
 import org.apache.ftpserver.ftplet.FtpException;
 
 public class Main {
+	
+	private static final String VERSION = "1.0";
 
 	private static Main singleton;
 
@@ -22,6 +24,8 @@ public class Main {
 	private CacheUpdaterService cacheUpdater;
 
 	public static void main(String[] args) {
+		
+		
 
 		singleton = new Main(readConfiguration(args));
 
@@ -44,6 +48,8 @@ public class Main {
 	}
 
 	private void init() {
+		System.out.println("Running Google-Drive-FTP-Adapter version '"+VERSION+"'...");
+		
 		System.setProperty("gdftpa.account", configuration.getProperty("account"));
 		
 		cache = SQLiteCache.getInstance(configuration);
