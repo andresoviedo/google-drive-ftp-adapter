@@ -86,7 +86,7 @@ public class CacheUpdaterService {
 	 */
 	public void start() {
 		synchPeriodicTask = createSynchChangesTask();
-		timer.schedule(synchPeriodicTask, 0, 60000 * 10);
+		timer.schedule(synchPeriodicTask, 0, 10000);
 	}
 
 	public void updateNow(String fileId) {

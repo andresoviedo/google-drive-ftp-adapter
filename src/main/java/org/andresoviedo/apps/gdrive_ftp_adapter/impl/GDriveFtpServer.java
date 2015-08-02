@@ -3,7 +3,6 @@ package org.andresoviedo.apps.gdrive_ftp_adapter.impl;
 import java.util.Properties;
 
 import org.andresoviedo.apps.gdrive_ftp_adapter.security.FtpUserManagerFactory;
-import org.apache.ftpserver.ConnectionConfig;
 import org.apache.ftpserver.ConnectionConfigFactory;
 import org.apache.ftpserver.FtpServerFactory;
 import org.apache.ftpserver.command.CommandFactoryFactory;

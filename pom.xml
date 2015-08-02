@@ -6,7 +6,7 @@
 
 	<groupId>org.andresoviedo</groupId>
 	<artifactId>google-drive-ftp-adapter</artifactId>
-	<version>1.0-SNAPSHOT</version>
+	<version>1.0.1</version>
 
 	<name>Google Drive FTP Adapter</name>
 

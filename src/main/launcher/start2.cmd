@@ -18,7 +18,7 @@ if %errorlevel% neq 0 pause
 ECHO Launching google-drive-ftp-adapter...
 SET PROXY_CONF=
 REM SET PROXY_CONF=-Dhttps.proxyHost=PROXY_HOST -Dhttps.proxyPort=PROXY_PORT
-java.exe %PROXY_CONF% -cp "%CWD%lib/*" -jar "%CWD%lib\google-drive-ftp-adapter-1.0-SNAPSHOT.jar" user2 22
+java.exe %PROXY_CONF% -cp "%CWD%lib/*" -jar "%CWD%lib\google-drive-ftp-adapter-1.0.1.jar" user2 22
 if %errorlevel% neq 0 pause
 
 ECHO.
