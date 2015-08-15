@@ -1,4 +1,4 @@
-![alt tag](https://googledrive.com/host/0BxpnQDC5hjw-RVlQTFM4ZzNWOVk/google-drive-ftp-adapter/icon.jpeg)
+![alt tag](http://www.andresoviedo.org/projects/google-drive-ftp-adapter/icon.jpeg)
 
 
 Project info
