@@ -4,7 +4,7 @@
 Project info
 ============ 
 
-http://www.andresoviedo.org/projects/google-drive-ftp-adapter
+http://www.andresoviedo.org/google-drive-ftp-adapter
 
 
 ChangeLog
