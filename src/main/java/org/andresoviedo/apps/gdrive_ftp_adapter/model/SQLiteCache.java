@@ -1,4 +1,4 @@
-package org.andresoviedo.apps.gdrive_ftp_adapter.cache;
+package org.andresoviedo.apps.gdrive_ftp_adapter.model;
 
 import java.io.File;
 import java.sql.Connection;
@@ -12,7 +12,7 @@ import java.util.Properties;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.FtpGDriveFile;
+import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive.FTPGFile;
 import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -34,19 +34,18 @@ import org.springframework.jdbc.core.RowMapper;
  */
 public final class SQLiteCache implements Cache {
 
-	private static Log logger = LogFactory.getLog(SQLiteCache.class);
+	private static final Log LOG = LogFactory.getLog(SQLiteCache.class);
 
 	private static final String TABLE_FILES = "files";
 
 	private static final String TABLE_CHILDS = "childs";
 
-	private static SQLiteCache instance;
-	
-	private Properties configuration;
+	@SuppressWarnings("unused")
+	private final Properties configuration;
 
-	private RowMapper<FtpGDriveFile> rowMapper;
+	private final RowMapper<FTPGFile> rowMapper;
 
-	private JdbcTemplate jdbcTemplate;
+	private final JdbcTemplate jdbcTemplate;
 
 	private final ReentrantReadWriteLock rwl = new ReentrantReadWriteLock();
 	private final Lock r = rwl.readLock();
@@ -54,71 +53,38 @@ public final class SQLiteCache implements Cache {
 
 	private BasicDataSource dataSource;
 
-	private SQLiteCache(Properties configuration) {
-		this.configuration = configuration; 
-		init();
-	}
-	
-	public static Cache getInstance(Properties configuration) {
-		if (instance == null) {
-			instance = new SQLiteCache(configuration);
-		}
-		return instance;
-	}
-
-	public static SQLiteCache getInstance() {
-		if (instance == null) {
-			throw new IllegalStateException("SQLiteCache not yet initialized");
-		}
-		return instance;
-	}
-
-	private void init() {
-		try {
-			initDAO();
-
-			initDatabase();
-
-			// jdbcTemplate.execute(".timeout 10000");
-
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-	}
-
-	private void initDAO() {
+	public SQLiteCache(Properties configuration) {
+		this.configuration = configuration;
 
 		// initialize the data store factory
 		String account = configuration.getProperty("account");
-		if (account.equals("pk1")){
+		if (account.equals("pk1")) {
 			// TODO: this should be a file migration process
 			account = "cache";
 		}
-		File dataDir = new File("data"+File.separator+account);
+		File dataDir = new File("data" + File.separator + account);
 		if (!dataDir.exists()) {
-			logger.info("Creating cache '"+dataDir+"'...");
+			LOG.info("Creating cache '" + dataDir + "'...");
 			if (!dataDir.mkdirs()) {
-				throw new RuntimeException("Could not create database folder "
-						+ dataDir.getAbsolutePath());
+				throw new RuntimeException("Could not create database folder " + dataDir.getAbsolutePath());
 			}
 		}
-		
-		String dataFile = "data/"+account+"/gdrive.db";
-		logger.info("Loading database '"+dataFile+"'...");
+
+		String dataFile = "data/" + account + "/gdrive.db";
+		LOG.info("Loading database '" + dataFile + "'...");
 
 		dataSource = new BasicDataSource();
 		dataSource.setDriverClassName("org.sqlite.JDBC");
-		dataSource.setUrl("jdbc:sqlite:file:"+dataFile);
+		dataSource.setUrl("jdbc:sqlite:file:" + dataFile);
 		// dataSource.setMaxActive(1);
 		dataSource.setMaxWait(60000);
 
 		jdbcTemplate = new JdbcTemplate(dataSource);
 
-		rowMapper = new RowMapper<FtpGDriveFile>() {
+		rowMapper = new RowMapper<FTPGFile>() {
 			@Override
-			public FtpGDriveFile mapRow(ResultSet rs, int rowNum)
-					throws SQLException {
-				FtpGDriveFile ret = new FtpGDriveFile();
+			public FTPGFile mapRow(ResultSet rs, int rowNum) throws SQLException {
+				FTPGFile ret = new FTPGFile();
 				ret.setId(rs.getString("id"));
 				// TODO: hace falta informar los parents aqui?
 				// ret.setParentId(rs.getString("parentId"));
@@ -126,55 +92,45 @@ public final class SQLiteCache implements Cache {
 				ret.setRevision(rs.getLong("revision"));
 				ret.setDirectory(rs.getBoolean("isDirectory"));
 				ret.setLength(rs.getLong("length"));
-				ret.setLastModifiedImpl(rs.getLong("lastModified"));
+				ret.setLastModified(rs.getLong("lastModified"));
 				ret.setMd5Checksum(rs.getString("md5Checksum"));
 				ret.setExists(true);
 				return ret;
 			}
 		};
-	}
 
-	private void initDatabase() throws SQLException {
-
-		Integer ret = jdbcTemplate.queryForObject(
-				"SELECT count(*) FROM sqlite_master WHERE type='table' AND name='"
-						+ TABLE_FILES + "';", Integer.class);
+		Integer ret = jdbcTemplate.queryForObject("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='"
+				+ TABLE_FILES + "';", Integer.class);
 		if (ret == 0) {
 			List<String> queries = new ArrayList<String>();
-			queries.add("create table "
-					+ TABLE_FILES
-					+ " (id text, revision integer, "
+			queries.add("create table " + TABLE_FILES + " (id text, revision integer, "
 					+ "filename text not null, isDirectory boolean, length integer, lastModified integer, "
 					+ "md5Checksum text, primary key (id))");
-			queries.add("create table " + TABLE_CHILDS
-					+ " (id integer primary key, childId text references "
-					+ TABLE_FILES + "(id), parentId text references "
-					+ TABLE_FILES + "(id), unique (childId, parentId))");
-			queries.add("create index idx_filename on " + TABLE_FILES
-					+ " (filename)");
-			jdbcTemplate
-					.batchUpdate(queries.toArray(new String[queries.size()]));
+			queries.add("create table " + TABLE_CHILDS + " (id integer primary key, childId text references "
+					+ TABLE_FILES + "(id), parentId text references " + TABLE_FILES
+					+ "(id), unique (childId, parentId))");
+			queries.add("create index idx_filename on " + TABLE_FILES + " (filename)");
+			jdbcTemplate.batchUpdate(queries.toArray(new String[queries.size()]));
 
-			logger.info("Database created");
+			LOG.info("Database created");
 		} else {
-			logger.info("Database found");
+			LOG.info("Database found");
 		}
+
+		// jdbcTemplate.execute(".timeout 10000");
 	}
 
 	/*
 	 * (non-Javadoc)
 	 * 
-	 * @see
-	 * org.andresoviedo.apps.gdrive_ftp_adapter.cache.Cache#getFile(java.lang
-	 * .String)
+	 * @see org.andresoviedo.apps.gdrive_ftp_adapter.service.Cache#getFile(java.lang .String)
 	 */
 	@Override
-	public FtpGDriveFile getFile(String id) {
+	public FTPGFile getFile(String id) {
 		r.lock();
 		try {
-			logger.trace("getFile(" + id + ")");
-			FtpGDriveFile file = (FtpGDriveFile) jdbcTemplate.queryForObject(
-					"select * from " + TABLE_FILES + " where id=?",
+			LOG.trace("getFile(" + id + ")");
+			FTPGFile file = (FTPGFile) jdbcTemplate.queryForObject("select * from " + TABLE_FILES + " where id=?",
 					new Object[] { id }, rowMapper);
 			return file;
 		} catch (EmptyResultDataAccessException ex) {
@@ -184,7 +140,7 @@ public final class SQLiteCache implements Cache {
 		}
 	}
 
-	public void addOrUpdateFile(FtpGDriveFile file) {
+	public void addOrUpdateFile(FTPGFile file) {
 		List<String> queries = new ArrayList<String>();
 		List<Object[]> args = new ArrayList<Object[]>();
 		// queries.add("insert into "
@@ -192,12 +148,9 @@ public final class SQLiteCache implements Cache {
 		// +
 		// " (id,revision,filename,isDirectory,length,lastModified,md5checksum)"
 		// + " values(?,?,?,?,?,?,?)");
-		queries.add("insert or replace into "
-				+ TABLE_FILES
-				+ " (id, revision,filename,isDirectory,length,lastModified,md5checksum)"
-				+ " values(?,?,?,?,?,?,?)");
-		args.add(new Object[] { file.getId(), file.getRevision(),
-				file.getName(), file.isDirectory(), file.getLength(),
+		queries.add("insert or replace into " + TABLE_FILES
+				+ " (id, revision,filename,isDirectory,length,lastModified,md5checksum)" + " values(?,?,?,?,?,?,?)");
+		args.add(new Object[] { file.getId(), file.getRevision(), file.getName(), file.isDirectory(), file.getLength(),
 				file.getLastModified(), file.getMd5Checksum() });
 
 		updateParents(file, queries, args);
@@ -205,42 +158,33 @@ public final class SQLiteCache implements Cache {
 		executeInTransaction(queries, args);
 	}
 
-	void addFile(FtpGDriveFile file, List<String> queries, List<Object[]> args) {
-		queries.add("insert into "
-				+ TABLE_FILES
-				+ " (id, revision,filename,isDirectory,length,lastModified,md5checksum)"
-				+ " values(?,?,?,?,?,?,?)");
-		args.add(new Object[] { file.getId(), file.getRevision(),
-				file.getName(), file.isDirectory(), file.getLength(),
+	void addFile(FTPGFile file, List<String> queries, List<Object[]> args) {
+		queries.add("insert into " + TABLE_FILES
+				+ " (id, revision,filename,isDirectory,length,lastModified,md5checksum)" + " values(?,?,?,?,?,?,?)");
+		args.add(new Object[] { file.getId(), file.getRevision(), file.getName(), file.isDirectory(), file.getLength(),
 				file.getLastModified(), file.getMd5Checksum() });
 	}
 
 	// TODO: merge de este con el addFile
-	public void updateChilds(FtpGDriveFile file, List<FtpGDriveFile> childs) {
+	public void updateChilds(FTPGFile file, List<FTPGFile> childs) {
 		List<String> queries = new ArrayList<String>();
 		List<Object[]> args = new ArrayList<Object[]>();
 		queries.add("delete from " + TABLE_CHILDS + " where parentId=?");
 		args.add(new Object[] { file.getId() });
 
-		queries.add("update "
-				+ TABLE_FILES
+		queries.add("update " + TABLE_FILES
 				+ " set revision=?,filename=?,isDirectory=?,length=?,lastModified=?,md5checksum=? where id=?");
-		args.add(new Object[] { file.getRevision(), file.getName(),
-				file.isDirectory(), file.getLength(), file.getLastModified(),
-				file.getMd5Checksum(), file.getId() });
+		args.add(new Object[] { file.getRevision(), file.getName(), file.isDirectory(), file.getLength(),
+				file.getLastModified(), file.getMd5Checksum(), file.getId() });
 
-		for (FtpGDriveFile child : childs) {
-			queries.add("insert or replace into "
-					+ TABLE_FILES
-					+ " (id,revision,filename,isDirectory,length,lastModified,md5checksum)"
-					+ " values(?,?,?,?,?,?,?)");
-			args.add(new Object[] { child.getId(), child.getRevision(),
-					child.getName(), child.isDirectory(), child.getLength(),
-					child.getLastModified(), child.getMd5Checksum() });
+		for (FTPGFile child : childs) {
+			queries.add("insert or replace into " + TABLE_FILES
+					+ " (id,revision,filename,isDirectory,length,lastModified,md5checksum)" + " values(?,?,?,?,?,?,?)");
+			args.add(new Object[] { child.getId(), child.getRevision(), child.getName(), child.isDirectory(),
+					child.getLength(), child.getLastModified(), child.getMd5Checksum() });
 
 			for (String parent : child.getParents()) {
-				queries.add("insert into " + TABLE_CHILDS
-						+ " (childId,parentId) values(?,?)");
+				queries.add("insert into " + TABLE_CHILDS + " (childId,parentId) values(?,?)");
 				args.add(new Object[] { child.getId(), parent });
 			}
 		}
@@ -248,13 +192,11 @@ public final class SQLiteCache implements Cache {
 		executeInTransaction(queries, args);
 	}
 
-	private void updateParents(FtpGDriveFile file, List<String> queries,
-			List<Object[]> args) {
+	private void updateParents(FTPGFile file, List<String> queries, List<Object[]> args) {
 		queries.add("delete from " + TABLE_CHILDS + " where childId=?");
 		args.add(new Object[] { file.getId() });
 		for (String parent : file.getParents()) {
-			queries.add("insert into " + TABLE_CHILDS
-					+ " (childId,parentId) values(?,?)");
+			queries.add("insert into " + TABLE_CHILDS + " (childId,parentId) values(?,?)");
 			args.add(new Object[] { file.getId(), parent });
 		}
 	}
@@ -281,12 +223,10 @@ public final class SQLiteCache implements Cache {
 	// }
 	// }
 
-	private int executeInTransaction(final List<String> queries,
-			final List<Object[]> args) {
+	private int executeInTransaction(final List<String> queries, final List<Object[]> args) {
 		return jdbcTemplate.execute(new ConnectionCallback<Integer>() {
 			@Override
-			public Integer doInConnection(Connection connection)
-					throws SQLException, DataAccessException {
+			public Integer doInConnection(Connection connection) throws SQLException, DataAccessException {
 				w.lock();
 				try {
 					connection.setAutoCommit(false);
@@ -294,13 +234,10 @@ public final class SQLiteCache implements Cache {
 					// connection.createStatement().execute("begin transaction");
 					for (int i = 0; i < queries.size(); i++) {
 						if (args.get(i) == null) {
-							ret += connection.createStatement().executeUpdate(
-									queries.get(i));
+							ret += connection.createStatement().executeUpdate(queries.get(i));
 						} else {
-							PreparedStatement ps = connection
-									.prepareStatement(queries.get(i));
-							PreparedStatementSetter pssetter = new ArgumentPreparedStatementSetter(
-									args.get(i));
+							PreparedStatement ps = connection.prepareStatement(queries.get(i));
+							PreparedStatementSetter pssetter = new ArgumentPreparedStatementSetter(args.get(i));
 							pssetter.setValues(ps);
 							ret += ps.executeUpdate();
 						}
@@ -309,10 +246,9 @@ public final class SQLiteCache implements Cache {
 					// connection.createStatement().execute("commit transaction");
 					return ret;
 				} catch (Exception ex) {
-					logger.error("Error executing transaction. Details:");
+					LOG.error("Error executing transaction. Details:");
 					for (int i = 0; i < queries.size(); i++) {
-						logger.error("Query '" + queries.get(i) + "' args '"
-								+ Arrays.toString(args.get(i)) + "' ");
+						LOG.error("Query '" + queries.get(i) + "' args '" + Arrays.toString(args.get(i)) + "' ");
 					}
 					throw ex;
 				} finally {
@@ -329,18 +265,16 @@ public final class SQLiteCache implements Cache {
 	}
 
 	@Override
-	public boolean updateFile(FtpGDriveFile file) {
+	public boolean updateFile(FTPGFile file) {
 		return jdbcTemplate
 				.update("update "
 						+ TABLE_FILES
 						+ " set revision=?,filename=?,isDirectory=?,length=?,lastModified=?,md5checksum=? where id=? and revision < ?",
-						new Object[] { file.getRevision(), file.getName(),
-								file.isDirectory(), file.getLength(),
-								file.getLastModified(), file.getMd5Checksum(),
-								file.getId(), file.getRevision() }) == 1;
+						new Object[] { file.getRevision(), file.getName(), file.isDirectory(), file.getLength(),
+								file.getLastModified(), file.getMd5Checksum(), file.getId(), file.getRevision() }) == 1;
 	}
 
-	// public void updateFileAndParents(FtpGDriveFile patch) {
+	// public void updateFileAndParents(FTPGFile patch) {
 	//
 	// List<String> queries = new ArrayList<String>();
 	// List<Object[]> args = new ArrayList<Object[]>();
@@ -358,10 +292,10 @@ public final class SQLiteCache implements Cache {
 	// executeInTransaction(queries, args);
 	// }
 
-	void addFiles(List<FtpGDriveFile> files) {
+	void addFiles(List<FTPGFile> files) {
 		List<String> queries = new ArrayList<String>();
 		List<Object[]> args = new ArrayList<Object[]>();
-		for (FtpGDriveFile file : files) {
+		for (FTPGFile file : files) {
 			addFile(file, queries, args);
 			updateParents(file, queries, args);
 		}
@@ -375,19 +309,16 @@ public final class SQLiteCache implements Cache {
 	/*
 	 * (non-Javadoc)
 	 * 
-	 * @see
-	 * org.andresoviedo.apps.gdrive_ftp_adapter.cache.Cache#getFiles(java.lang
-	 * .String)
+	 * @see org.andresoviedo.apps.gdrive_ftp_adapter.service.Cache#getFiles(java.lang .String)
 	 */
 	@Override
-	public List<FtpGDriveFile> getFiles(String parentId) {
+	public List<FTPGFile> getFiles(String parentId) {
+		System.out.println();
 		r.lock();
 		try {
-			final List<FtpGDriveFile> query = jdbcTemplate.query("select "
-					+ TABLE_FILES + ".* from " + TABLE_FILES + ","
-					+ TABLE_CHILDS + " where " + TABLE_CHILDS + ".childId="
-					+ TABLE_FILES + ".id and " + TABLE_CHILDS + ".parentId=?",
-					new Object[] { parentId }, rowMapper);
+			final List<FTPGFile> query = jdbcTemplate.query("select " + TABLE_FILES + ".* from " + TABLE_FILES + ","
+					+ TABLE_CHILDS + " where " + TABLE_CHILDS + ".childId=" + TABLE_FILES + ".id and " + TABLE_CHILDS
+					+ ".parentId=?", new Object[] { parentId }, rowMapper);
 			return query;
 		} finally {
 			r.unlock();
@@ -398,13 +329,11 @@ public final class SQLiteCache implements Cache {
 		r.lock();
 		try {
 			if (revision != -1) {
-				return jdbcTemplate.queryForList(
-						"select id from " + TABLE_FILES
-								+ " where isDirectory=1 and revision = ?",
-						new Object[] { revision }, String.class);
+				return jdbcTemplate.queryForList("select id from " + TABLE_FILES
+						+ " where isDirectory=1 and revision = ?", new Object[] { revision }, String.class);
 			} else {
-				return jdbcTemplate.queryForList("select id from "
-						+ TABLE_FILES + " where isDirectory=1", String.class);
+				return jdbcTemplate
+						.queryForList("select id from " + TABLE_FILES + " where isDirectory=1", String.class);
 			}
 		} finally {
 			r.unlock();
@@ -414,21 +343,16 @@ public final class SQLiteCache implements Cache {
 	/*
 	 * (non-Javadoc)
 	 * 
-	 * @see
-	 * org.andresoviedo.apps.gdrive_ftp_adapter.cache.Cache#getFileByName(java
-	 * .lang.String, java.lang.String)
+	 * @see org.andresoviedo.apps.gdrive_ftp_adapter.service.Cache#getFileByName(java .lang.String, java.lang.String)
 	 */
 	@Override
-	public FtpGDriveFile getFileByName(String parentId, String filename) {
+	public FTPGFile getFileByName(String parentId, String filename) {
 		r.lock();
 		try {
-			final FtpGDriveFile query = (FtpGDriveFile) jdbcTemplate
-					.queryForObject("select " + TABLE_FILES + ".* from "
-							+ TABLE_CHILDS + "," + TABLE_FILES + " where "
-							+ TABLE_CHILDS + ".childId=" + TABLE_FILES
-							+ ".id and " + TABLE_CHILDS + ".parentId=? and "
-							+ TABLE_FILES + ".filename=?", new Object[] {
-							parentId, filename }, rowMapper);
+			final FTPGFile query = (FTPGFile) jdbcTemplate.queryForObject("select " + TABLE_FILES + ".* from "
+					+ TABLE_CHILDS + "," + TABLE_FILES + " where " + TABLE_CHILDS + ".childId=" + TABLE_FILES
+					+ ".id and " + TABLE_CHILDS + ".parentId=? and " + TABLE_FILES + ".filename=?", new Object[] {
+					parentId, filename }, rowMapper);
 			return query;
 		} catch (EmptyResultDataAccessException ex) {
 			return null;
@@ -437,7 +361,7 @@ public final class SQLiteCache implements Cache {
 		}
 	}
 
-	// void updateFileRevision(FtpGDriveFile fileId) {
+	// void updateFileRevision(FTPGFile fileId) {
 	// w.lock();
 	// try {
 	// jdbcTemplate.update("update " + TABLE_FILES
@@ -473,8 +397,7 @@ public final class SQLiteCache implements Cache {
 	public long getRevision() {
 		r.lock();
 		try {
-			return jdbcTemplate.queryForObject("select max(revision) from "
-					+ TABLE_FILES, Long.class);
+			return jdbcTemplate.queryForObject("select max(revision) from " + TABLE_FILES, Long.class);
 		} finally {
 			r.unlock();
 		}
@@ -484,13 +407,11 @@ public final class SQLiteCache implements Cache {
 		r.lock();
 		try {
 
-			return jdbcTemplate.queryForObject("select min(revision) from "
-					+ TABLE_FILES + " where revision > 0", Long.class);
+			return jdbcTemplate.queryForObject("select min(revision) from " + TABLE_FILES + " where revision > 0",
+					Long.class);
 		} finally {
 			r.unlock();
 		}
 	}
-
-	
 
 }
