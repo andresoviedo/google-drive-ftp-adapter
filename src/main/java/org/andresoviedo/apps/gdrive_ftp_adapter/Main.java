@@ -16,7 +16,7 @@ import org.apache.ftpserver.ftplet.FtpException;
 // TODO: bug synching changes. First update from local storage will have
 // set max change id, so database will be "updated" for wrong.
 
-// TODO: FTP paralelization seams not working with beyond compare?
+// TODO: FTP parallelization seams not working with beyond compare?
 public final class Main {
 
 	private static final String VERSION = "1.0";
@@ -71,9 +71,7 @@ public final class Main {
 
 	private void start() {
 		try {
-			// TODO: start updater
-			// cacheUpdater.start();
-
+			cacheUpdater.start();
 			server.start();
 		} catch (FtpException e) {
 			throw new RuntimeException(e);

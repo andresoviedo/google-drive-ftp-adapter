@@ -18,6 +18,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.jdbc.core.ArgumentPreparedStatementSetter;
 import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -346,7 +347,7 @@ public final class SQLiteCache implements Cache {
 	 * @see org.andresoviedo.apps.gdrive_ftp_adapter.service.Cache#getFileByName(java .lang.String, java.lang.String)
 	 */
 	@Override
-	public FTPGFile getFileByName(String parentId, String filename) {
+	public FTPGFile getFileByName(String parentId, String filename) throws IncorrectResultSizeDataAccessException {
 		r.lock();
 		try {
 			final FTPGFile query = (FTPGFile) jdbcTemplate.queryForObject("select " + TABLE_FILES + ".* from "

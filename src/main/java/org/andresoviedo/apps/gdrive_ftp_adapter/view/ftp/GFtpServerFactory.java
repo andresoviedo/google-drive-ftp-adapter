@@ -196,8 +196,8 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 			private String virtualName;
 
-			public FtpFileWrapper(FtpFileWrapper parent, FTPGFile ftpGFile, String absolutePath, String virtualName,
-					boolean exists, boolean isRoot) {
+			public FtpFileWrapper(FtpFileWrapper parent, FTPGFile ftpGFile, String absolutePath, String virtualName, boolean exists,
+					boolean isRoot) {
 				this.parentFile = parent;
 				this.ftpGFile = ftpGFile;
 				this.isRoot = isRoot;
@@ -308,7 +308,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 			@Override
 			public boolean move(FtpFile destination) {
-				return controller.renameFile((FTPGFile) destination, destination.getName());
+				return controller.renameFile(this.unwrap(), destination.getName());
 			}
 
 			@Override
@@ -364,8 +364,8 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 		public static final String FILE_SELF = ".";
 
-		private final Pattern ENCODED_FILE_PATTERN = Pattern.compile("^(.*)\\Q" + ENCODED_FILE_TOKEN + "\\E(.{28})\\Q"
-				+ ENCODED_FILE_TOKEN + "\\E(.*)$");
+		private final Pattern ENCODED_FILE_PATTERN = Pattern.compile("^(.*)\\Q" + ENCODED_FILE_TOKEN + "\\E(.{28})\\Q" + ENCODED_FILE_TOKEN
+				+ "\\E(.*)$");
 
 		private final User user;
 
@@ -428,9 +428,6 @@ public class GFtpServerFactory extends FtpServerFactory {
 				initWorkingDirectory();
 
 				LOG.debug("Changing working directory from '" + currentDir + "' to '" + path + "'...");
-
-				// Normalize slashes?
-				// path = normalize(path);
 
 				// querying for home /
 				if (FILE_SEPARATOR.equals(path)) {
@@ -501,6 +498,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 			try {
 				if ("./".equals(originalPath)) {
+					// TODO: this happens?
 					return currentDir;
 				}
 
@@ -511,8 +509,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 					return currentDir;
 				}
 
-				return originalPath.startsWith(FILE_SEPARATOR) ? getFileByAbsolutePath(name) : getFileByName(
-						currentDir, name);
+				return originalPath.startsWith(FILE_SEPARATOR) ? getFileByAbsolutePath(name) : getFileByName(currentDir, name);
 			} catch (IllegalArgumentException e) {
 				LOG.error(e.getMessage());
 				throw new FtpException(e.getMessage(), e);
@@ -591,10 +588,9 @@ public class GFtpServerFactory extends FtpServerFactory {
 					}
 					LOG.debug("File '" + fileName + "' doesn't exist!");
 
-					return createFtpFileWrapper(folder, new FTPGFile(Collections.singleton(folder.getId()), fileName),
-							false);
+					return createFtpFileWrapper(folder, new FTPGFile(Collections.singleton(folder.getId()), fileName), false);
 				} catch (IncorrectResultSizeDataAccessException e) {
-					// TODO: what is this shit?
+					// TODO: what is this?
 					// File with same name exists
 					throw new IllegalArgumentException("File with name " + fileName
 							+ " already exists. Files market with '_###_' are it's duplicated files");
@@ -609,14 +605,12 @@ public class GFtpServerFactory extends FtpServerFactory {
 			fileName = matcher.group(1) + matcher.group(3);
 			final String fileId = matcher.group(2);
 
-			LOG.info("Searching file '" + folder.getAbsolutePath() + FILE_SEPARATOR + fileName + "' ('" + fileId
-					+ "')...");
+			LOG.info("Searching file '" + folder.getAbsolutePath() + FILE_SEPARATOR + fileName + "' ('" + fileId + "')...");
 			FTPGFile gfile = model.getFile(fileId);
 			if (gfile == null) {
 				LOG.info("File '" + folder.getAbsolutePath() + FILE_SEPARATOR + fileName + "' ('" + fileId
 						+ "') not found. Returning new file...");
-				return createFtpFileWrapper(folder, new FTPGFile(Collections.singleton(folder.getId()), fileName),
-						false);
+				return createFtpFileWrapper(folder, new FTPGFile(Collections.singleton(folder.getId()), fileName), false);
 			}
 
 			return createFtpFileWrapper(folder, gfile, true);
@@ -632,8 +626,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 				final String oldFilename = virtualFilename;
 				// update variable
 				virtualFilename = encodeFilename(filenameWithoutIllegalChars, gFile.getId());
-				LOG.info("Filename with illegal chars '" + oldFilename + "' has been given virtual name '"
-						+ virtualFilename + "'");
+				LOG.info("Filename with illegal chars '" + oldFilename + "' has been given virtual name '" + virtualFilename + "'");
 			}
 
 			String absolutePath = folder.getAbsolutePath() + (folder.isRoot() ? "" : FILE_SEPARATOR) + virtualFilename;
@@ -664,8 +657,8 @@ public class GFtpServerFactory extends FtpServerFactory {
 				// windows doesn't distinguish the case, unix does
 				// windows & linux can't have repeated filenames
 				// TODO: other OS I don't know yet...
-				String filename = OSUtils.isWindows() ? fileWrapper.getName().toLowerCase()
-						: OSUtils.isUnix() ? fileWrapper.getName() : fileWrapper.getName();
+				String filename = OSUtils.isWindows() ? fileWrapper.getName().toLowerCase() : OSUtils.isUnix() ? fileWrapper.getName()
+						: fileWrapper.getName();
 
 				// check if the filename is not yet duplicated
 				if (!allFilenames.containsKey(filename)) {
@@ -710,8 +703,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 			/**
 			 * Execute command.
 			 */
-			public void execute(final FtpIoSession session, final FtpServerContext context, final FtpRequest request)
-					throws IOException {
+			public void execute(final FtpIoSession session, final FtpServerContext context, final FtpRequest request) throws IOException {
 
 				// reset state variables
 				session.resetState();
@@ -750,8 +742,8 @@ public class GFtpServerFactory extends FtpServerFactory {
 					}
 
 					if (file == null || !file.doesExist()) {
-						session.write(LocalizedFtpReply.translate(session, request, context,
-								FtpReply.REPLY_550_REQUESTED_ACTION_NOT_TAKEN, "MFMT.filemissing", fileName));
+						session.write(LocalizedFtpReply.translate(session, request, context, FtpReply.REPLY_550_REQUESTED_ACTION_NOT_TAKEN,
+								"MFMT.filemissing", fileName));
 						return;
 					}
 
@@ -780,8 +772,8 @@ public class GFtpServerFactory extends FtpServerFactory {
 					}
 
 					// all checks okay, lets go
-					session.write(LocalizedFtpReply.translate(session, request, context,
-							FtpReply.REPLY_213_FILE_STATUS, "MFMT", "ModifyTime=" + timestamp + "; " + fileName));
+					session.write(LocalizedFtpReply.translate(session, request, context, FtpReply.REPLY_213_FILE_STATUS, "MFMT",
+							"ModifyTime=" + timestamp + "; " + fileName));
 					return;
 
 				} catch (ParseException e) {
