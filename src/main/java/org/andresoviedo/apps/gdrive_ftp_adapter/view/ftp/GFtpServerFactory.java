@@ -484,13 +484,18 @@ public class GFtpServerFactory extends FtpServerFactory {
 		/**
 		 * This method is triggered when receiving a {@link MLSD} command or {@link RETR}.
 		 * 
-		 * TODO: Problema: No se cuando se trata de un fichero nuevo o existente cuando el nombre lleva el *__id__*.
+		 * The argument can be one of this:
+		 * <ul>
+		 * <li>"./": Should return the current directory (FileZilla tested!)</li>
+		 * </ul>
 		 */
+		// TODO: Problema: No se cuando se trata de un fichero nuevo o existente cuando el nombre lleva el *__id__*.
 		@Override
 		public FtpFile getFile(String originalPath) throws FtpException {
 			StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
-			StackTraceElement caller = stackTraceElements[3];
+			StackTraceElement caller = stackTraceElements[2];
 			if (RNTO.class.getName().equals(caller.getClassName()) && originalPath.contains(ENCODED_FILE_TOKEN)) {
+				LOG.info("Name cannot contain those chars");
 				throw new FtpException("Name cannot contain those chars");
 			}
 
@@ -498,7 +503,6 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 			try {
 				if ("./".equals(originalPath)) {
-					// TODO: this happens?
 					return currentDir;
 				}
 
@@ -599,12 +603,13 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 			// Get file when the name is encoded. The encode name has the form:
 			// <filename>__###__<google_file_id>_###.<ext>.
-			// Decode fila name...
+			// Decode file name...
 			Matcher matcher = ENCODED_FILE_PATTERN.matcher(fileName);
 			matcher.find();
 			fileName = matcher.group(1) + matcher.group(3);
 			final String fileId = matcher.group(2);
 
+			// TODO: Maybe here I should validate for hacks
 			LOG.info("Searching file '" + folder.getAbsolutePath() + FILE_SEPARATOR + fileName + "' ('" + fileId + "')...");
 			FTPGFile gfile = model.getFile(fileId);
 			if (gfile == null) {

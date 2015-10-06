@@ -7,6 +7,21 @@ Project info
 http://gdriv.es/andresoviedo/google-drive-ftp-adapter
 
 
+Getting Started
+===============
+
+Run application:
+
+    $ java -jar google-drive-ftp-adapter-1.0.1.jar [google_account_name ftp_port_number]
+
+Program arguments:
+
+* google_account_name: choose a name for your account. For example "Pep"
+* ftp_port_number: on Linux choose a port over 1024 (below 1024 are privileged ports). For example 1820
+
+    $ java -jar google-drive-ftp-adapter-1.0.1.jar [google_account_name ftp_port_number]
+
+
 ChangeLog
 =========
 
