@@ -57,6 +57,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
 
+// TODO: browsing duplicated file names doesn't work. Received CWD command still has repeated name
 public class GFtpServerFactory extends FtpServerFactory {
 
 	private static final Log LOG = LogFactory.getLog(GFtpServerFactory.class);
@@ -495,8 +496,9 @@ public class GFtpServerFactory extends FtpServerFactory {
 			StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
 			StackTraceElement caller = stackTraceElements[2];
 			if (RNTO.class.getName().equals(caller.getClassName()) && originalPath.contains(ENCODED_FILE_TOKEN)) {
-				LOG.info("Name cannot contain those chars");
-				throw new FtpException("Name cannot contain those chars");
+				LOG.warn("User is renaming a file which contains special chars to this gdrive ftp adapter. Please avoid using the token '"
+						+ ENCODED_FILE_TOKEN + "' in the filename.");
+				// throw new FtpException("Name cannot contain those chars");
 			}
 
 			LOG.debug("Getting file '" + originalPath + "'...");
@@ -576,49 +578,68 @@ public class GFtpServerFactory extends FtpServerFactory {
 			return file;
 		}
 
+		/**
+		 * Get file by its name. Folder & name can be any of the following:
+		 * 
+		 * <ul>
+		 * <li>/,file1.txt</li>
+		 * <li>/,file1__###__google_file_id__##__.txt</li>
+		 * </ul>
+		 * 
+		 * @param folder
+		 *            the folder containing the file
+		 * @param fileName
+		 *            the name of the file
+		 * 
+		 * @return
+		 */
+		// TODO: validate this also works for duplicated folder names
 		private FtpFileWrapper getFileByName(FtpFileWrapper folder, String fileName) {
 			String absolutePath = folder.getAbsolutePath() + (folder.isRoot() ? "" : FILE_SEPARATOR) + fileName;
 			LOG.debug("Querying for file '" + absolutePath + "' inside folder '" + folder + "'...");
 
-			// Encoded?
-			int nextIdx = fileName.indexOf(ENCODED_FILE_TOKEN);
-			if (nextIdx == -1 || !ENCODED_FILE_PATTERN.matcher(fileName).matches()) {
-				// caso normal
-				try {
-					FTPGFile fileByName = model.getFileByName(folder.getId(), fileName);
-					if (fileByName != null) {
-						LOG.debug("File '" + fileName + "' found");
-						return createFtpFileWrapper(folder, fileByName, true);
-					}
-					LOG.debug("File '" + fileName + "' doesn't exist!");
-
-					return createFtpFileWrapper(folder, new FTPGFile(Collections.singleton(folder.getId()), fileName), false);
-				} catch (IncorrectResultSizeDataAccessException e) {
-					// TODO: what is this?
-					// File with same name exists
-					throw new IllegalArgumentException("File with name " + fileName
-							+ " already exists. Files market with '_###_' are it's duplicated files");
+			try {
+				FTPGFile fileByName = model.getFileByName(folder.getId(), fileName);
+				if (fileByName != null) {
+					LOG.debug("File '" + fileName + "' found");
+					return createFtpFileWrapper(folder, fileByName, true);
 				}
-			}
+				LOG.debug("File '" + fileName + "' doesn't exist!");
 
-			// Get file when the name is encoded. The encode name has the form:
-			// <filename>__###__<google_file_id>_###.<ext>.
-			// Decode file name...
-			Matcher matcher = ENCODED_FILE_PATTERN.matcher(fileName);
-			matcher.find();
-			fileName = matcher.group(1) + matcher.group(3);
-			final String fileId = matcher.group(2);
+				// Encoded?
+				int nextIdx = fileName.indexOf(ENCODED_FILE_TOKEN);
+				if (nextIdx != -1 && ENCODED_FILE_PATTERN.matcher(fileName).matches()) {
+					// caso normal
 
-			// TODO: Maybe here I should validate for hacks
-			LOG.info("Searching file '" + folder.getAbsolutePath() + FILE_SEPARATOR + fileName + "' ('" + fileId + "')...");
-			FTPGFile gfile = model.getFile(fileId);
-			if (gfile == null) {
-				LOG.info("File '" + folder.getAbsolutePath() + FILE_SEPARATOR + fileName + "' ('" + fileId
-						+ "') not found. Returning new file...");
+					// Get file when the name is encoded. The encode name has the form:
+					// <filename>__###__<google_file_id>_###.<ext>.
+					Matcher matcher = ENCODED_FILE_PATTERN.matcher(fileName);
+					matcher.find();
+
+					// Decode file name & id...
+					String expectedFileName = matcher.group(1) + matcher.group(3);
+					final String fileId = matcher.group(2);
+
+					LOG.info("Searching encoded file '" + folder.getAbsolutePath() + (folder.isRoot() ? "" : FILE_SEPARATOR)
+							+ expectedFileName + "' ('" + fileId + "')...");
+					FTPGFile gfile = model.getFile(fileId);
+					if (gfile != null && expectedFileName.equals(gfile.getName())) {
+						// The file id exists, but we have to check also for filename so we are sure the referred file
+						// is the same
+						// TODO: check also the containing folder is the same
+						return createFtpFileWrapper(folder, gfile, true);
+					}
+
+					LOG.info("Encoded file '" + folder.getAbsolutePath() + (folder.isRoot() ? "" : FILE_SEPARATOR) + expectedFileName
+							+ "' ('" + fileId + "') not found");
+				}
+
 				return createFtpFileWrapper(folder, new FTPGFile(Collections.singleton(folder.getId()), fileName), false);
+			} catch (IncorrectResultSizeDataAccessException e) {
+				// TODO: what is this? File with same name exists? When this happens?
+				throw new IllegalArgumentException("File with name " + fileName
+						+ " already exists. Files market with '_###_' are it's duplicated files");
 			}
-
-			return createFtpFileWrapper(folder, gfile, true);
 		}
 
 		private FtpFileWrapper createFtpFileWrapper(FtpFileWrapper folder, FTPGFile gFile, boolean exists) {
