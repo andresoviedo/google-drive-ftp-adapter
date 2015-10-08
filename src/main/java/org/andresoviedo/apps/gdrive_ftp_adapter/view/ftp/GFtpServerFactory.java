@@ -57,7 +57,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
 
-// TODO: browsing duplicated file names doesn't work. Received CWD command still has repeated name
+// TODO: validate all wrapper commands are working
 public class GFtpServerFactory extends FtpServerFactory {
 
 	private static final Log LOG = LogFactory.getLog(GFtpServerFactory.class);
@@ -185,39 +185,41 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 		class FtpFileWrapper implements FtpFile {
 
-			private final FtpFileWrapper parentFile;
+			private final FtpFileWrapper parent;
 
-			private final FTPGFile ftpGFile;
-
-			private final String ftpPath;
+			private final FTPGFile gfile;
 
 			private final boolean exists;
 
-			private final boolean isRoot;
-
+			/**
+			 * This is not final because this name can change if there is other file in the same folder with the same
+			 * name
+			 */
 			private String virtualName;
 
-			public FtpFileWrapper(FtpFileWrapper parent, FTPGFile ftpGFile, String absolutePath, String virtualName, boolean exists,
-					boolean isRoot) {
-				this.parentFile = parent;
-				this.ftpGFile = ftpGFile;
-				this.isRoot = isRoot;
+			public FtpFileWrapper(FtpFileWrapper parent, FTPGFile ftpGFile, String virtualName, boolean exists) {
+				this.parent = parent;
+				this.gfile = ftpGFile;
 				this.exists = exists;
 				this.virtualName = virtualName;
-				this.ftpPath = absolutePath;
 			}
 
 			public String getId() {
-				return ftpGFile.getId();
+				return gfile.getId();
 			}
 
 			@Override
 			public String getAbsolutePath() {
-				return ftpPath;
-			}
-
-			public String getFtpPath() {
-				return ftpPath;
+				/**
+				 * This should handle the following 3 cases:
+				 * <ul>
+				 * <li>root: /</li>
+				 * <li>root/file: /file</li>
+				 * <li>root/folder/file: /folder/file</li>
+				 * </ul>
+				 */
+				return isRoot() ? virtualName : parent.isRoot() ? FILE_SEPARATOR + virtualName : parent.getAbsolutePath() + FILE_SEPARATOR
+						+ virtualName;
 			}
 
 			@Override
@@ -233,7 +235,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 			@Override
 			public boolean doesExist() {
-				return ftpGFile.isExists();
+				return gfile.isExists();
 			}
 
 			@Override
@@ -250,12 +252,12 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 			@Override
 			public boolean isRemovable() {
-				return ftpGFile.isRemovable();
+				return gfile.isRemovable();
 			}
 
 			@Override
 			public String getOwnerName() {
-				return ftpGFile.getOwnerName();
+				return gfile.getOwnerName();
 			}
 
 			@Override
@@ -265,12 +267,12 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 			@Override
 			public int getLinkCount() {
-				return ftpGFile.getParents() != null ? ftpGFile.getParents().size() : 0;
+				return gfile.getParents() != null ? gfile.getParents().size() : 0;
 			}
 
 			@Override
 			public long getSize() {
-				return ftpGFile.getSize();
+				return gfile.getSize();
 			}
 
 			@Override
@@ -280,7 +282,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 			@Override
 			public long getLastModified() {
-				return ftpGFile.getLastModified();
+				return gfile.getLastModified();
 			}
 
 			@Override
@@ -290,11 +292,11 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 			@Override
 			public boolean isDirectory() {
-				return ftpGFile.isDirectory();
+				return gfile.isDirectory();
 			}
 
 			public FTPGFile unwrap() {
-				return ftpGFile;
+				return gfile;
 			}
 
 			public boolean isExists() {
@@ -302,7 +304,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 			}
 
 			public Set<String> getParents() {
-				return ftpGFile.getParents();
+				return gfile.getParents();
 			}
 
 			// ---------------- SETTERS ------------------ //
@@ -324,7 +326,10 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 			@Override
 			public boolean mkdir() {
-				return controller.mkdir(this.unwrap());
+				if (isRoot()) {
+					throw new IllegalArgumentException("Cannot create root folder");
+				}
+				return controller.mkdir(parent.getId(), this.unwrap());
 			}
 
 			@Override
@@ -339,15 +344,15 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 			@Override
 			public String toString() {
-				return "FtpFileWrapper [ftpPath=" + ftpPath + "]";
+				return "FtpFileWrapper [absolutePath=" + getAbsolutePath() + "]";
 			}
 
 			public boolean isRoot() {
-				return isRoot;
+				return parent == null;
 			}
 
 			public FtpFileWrapper getParentFile() {
-				return parentFile;
+				return parent;
 			}
 
 			public void setVirtualName(String virtualName) {
@@ -415,7 +420,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 					if (currentDir == null) {
 						LOG.info("Initializing ftp view...");
 						// TODO: what happen if a file is named "root"?
-						this.home = new FtpFileWrapper(null, model.getFile("root"), "/", "/", true, true);
+						this.home = new FtpFileWrapper(null, model.getFile("root"), "/", true);
 						this.currentDir = this.home;
 					}
 				}
@@ -490,32 +495,31 @@ public class GFtpServerFactory extends FtpServerFactory {
 		 * <li>"./": Should return the current directory (FileZilla tested!)</li>
 		 * </ul>
 		 */
-		// TODO: Problema: No se cuando se trata de un fichero nuevo o existente cuando el nombre lleva el *__id__*.
 		@Override
-		public FtpFile getFile(String originalPath) throws FtpException {
+		public FtpFile getFile(String fileName) throws FtpException {
+
+			// write log just for info
 			StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
 			StackTraceElement caller = stackTraceElements[2];
-			if (RNTO.class.getName().equals(caller.getClassName()) && originalPath.contains(ENCODED_FILE_TOKEN)) {
-				LOG.warn("User is renaming a file which contains special chars to this gdrive ftp adapter. Please avoid using the token '"
+			if (RNTO.class.getName().equals(caller.getClassName()) && fileName.contains(ENCODED_FILE_TOKEN)) {
+				LOG.info("User is renaming a file which contains special chars to this gdrive ftp adapter. Please avoid using the token '"
 						+ ENCODED_FILE_TOKEN + "' in the filename.");
-				// throw new FtpException("Name cannot contain those chars");
 			}
 
-			LOG.debug("Getting file '" + originalPath + "'...");
+			LOG.debug("Getting file '" + fileName + "'...");
+
+			initWorkingDirectory();
 
 			try {
-				if ("./".equals(originalPath)) {
+				if ("./".equals(fileName)) {
 					return currentDir;
 				}
 
-				// TODO: Trim original path?
-				String name = originalPath;
-
-				if (name.length() == 0) {
+				if (fileName.length() == 0) {
 					return currentDir;
 				}
 
-				return originalPath.startsWith(FILE_SEPARATOR) ? getFileByAbsolutePath(name) : getFileByName(currentDir, name);
+				return fileName.startsWith(FILE_SEPARATOR) ? getFileByAbsolutePath(fileName) : getFileByName(currentDir, fileName);
 			} catch (IllegalArgumentException e) {
 				LOG.error(e.getMessage());
 				throw new FtpException(e.getMessage(), e);
@@ -582,18 +586,21 @@ public class GFtpServerFactory extends FtpServerFactory {
 		 * Get file by its name. Folder & name can be any of the following:
 		 * 
 		 * <ul>
-		 * <li>/,file1.txt</li>
-		 * <li>/,file1__###__google_file_id__##__.txt</li>
+		 * <li>/,file.txt</li>
+		 * <li>/,folder/file.txt</li>
+		 * <li>/,folder/subfolder/file.txt</li>
+		 * <li>/,file__###__google_file_id__##__.txt</li>
+		 * <li>/,folder__###__google_file_id__##__/file.txt</li>
+		 * <li>/,folder__###__google_file_id__##__/subfolder__###__google_file_id_##__/file.txt</li>
 		 * </ul>
 		 * 
 		 * @param folder
 		 *            the folder containing the file
 		 * @param fileName
-		 *            the name of the file
+		 *            the name of the file. This name can come encoded
 		 * 
-		 * @return
+		 * @return the ftp wrapped file that can exist or not
 		 */
-		// TODO: validate this also works for duplicated folder names
 		private FtpFileWrapper getFileByName(FtpFileWrapper folder, String fileName) {
 			String absolutePath = folder.getAbsolutePath() + (folder.isRoot() ? "" : FILE_SEPARATOR) + fileName;
 			LOG.debug("Querying for file '" + absolutePath + "' inside folder '" + folder + "'...");
@@ -602,7 +609,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 				FTPGFile fileByName = model.getFileByName(folder.getId(), fileName);
 				if (fileByName != null) {
 					LOG.debug("File '" + fileName + "' found");
-					return createFtpFileWrapper(folder, fileByName, true);
+					return createFtpFileWrapper(folder, fileByName, fileName, true);
 				}
 				LOG.debug("File '" + fileName + "' doesn't exist!");
 
@@ -627,24 +634,24 @@ public class GFtpServerFactory extends FtpServerFactory {
 						// The file id exists, but we have to check also for filename so we are sure the referred file
 						// is the same
 						// TODO: check also the containing folder is the same
-						return createFtpFileWrapper(folder, gfile, true);
+						return createFtpFileWrapper(folder, gfile, fileName, true);
 					}
 
 					LOG.info("Encoded file '" + folder.getAbsolutePath() + (folder.isRoot() ? "" : FILE_SEPARATOR) + expectedFileName
 							+ "' ('" + fileId + "') not found");
 				}
 
-				return createFtpFileWrapper(folder, new FTPGFile(Collections.singleton(folder.getId()), fileName), false);
+				return createFtpFileWrapper(folder, new FTPGFile(Collections.singleton(folder.getId()), fileName), fileName, false);
 			} catch (IncorrectResultSizeDataAccessException e) {
-				// TODO: what is this? File with same name exists? When this happens?
-				throw new IllegalArgumentException("File with name " + fileName
-						+ " already exists. Files market with '_###_' are it's duplicated files");
+				// INFO: this happens when the user wants to get a file which actually exists, but because it's
+				// duplicated, the client should see the generated virtual name (filename encoded name with id).
+				// INFO: in this case, we return a new file (although it exists), because virtually speaking the file
+				// doesn't exists with that name
+				return createFtpFileWrapper(folder, new FTPGFile(Collections.singleton(folder.getId()), fileName), fileName, false);
 			}
 		}
 
-		private FtpFileWrapper createFtpFileWrapper(FtpFileWrapper folder, FTPGFile gFile, boolean exists) {
-
-			String virtualFilename = gFile.getName();
+		private FtpFileWrapper createFtpFileWrapper(FtpFileWrapper folder, FTPGFile gFile, String virtualFilename, boolean exists) {
 
 			// now lets remove illegal chars
 			final String filenameWithoutIllegalChars = illegalChars.matcher(virtualFilename).replaceAll("");
@@ -655,9 +662,10 @@ public class GFtpServerFactory extends FtpServerFactory {
 				LOG.info("Filename with illegal chars '" + oldFilename + "' has been given virtual name '" + virtualFilename + "'");
 			}
 
-			String absolutePath = folder.getAbsolutePath() + (folder.isRoot() ? "" : FILE_SEPARATOR) + virtualFilename;
+			String absolutePath = folder == null ? virtualFilename : folder.isRoot() ? FILE_SEPARATOR + virtualFilename : folder
+					.getAbsolutePath() + FILE_SEPARATOR + virtualFilename;
 			LOG.debug("Creating file wrapper " + absolutePath);
-			return new FtpFileWrapper(folder, gFile, absolutePath, virtualFilename, exists, false);
+			return new FtpFileWrapper(folder, gFile, virtualFilename, exists);
 		}
 
 		public List<FtpFile> listFiles(FtpFileWrapper folder) {
@@ -677,26 +685,25 @@ public class GFtpServerFactory extends FtpServerFactory {
 			// encode filenames if necessary (duplicated files, illegal chars, ...)
 			for (FTPGFile ftpFile : query) {
 
-				FtpFileWrapper fileWrapper = createFtpFileWrapper(folder, ftpFile, true);
+				FtpFileWrapper fileWrapper = createFtpFileWrapper(folder, ftpFile, ftpFile.getName(), true);
 				ret.add(fileWrapper);
 
 				// windows doesn't distinguish the case, unix does
 				// windows & linux can't have repeated filenames
 				// TODO: other OS I don't know yet...
-				String filename = OSUtils.isWindows() ? fileWrapper.getName().toLowerCase() : OSUtils.isUnix() ? fileWrapper.getName()
-						: fileWrapper.getName();
+				String virtualFilename = OSUtils.isWindows() ? fileWrapper.getName().toLowerCase() : OSUtils.isUnix() ? fileWrapper
+						.getName() : fileWrapper.getName();
 
 				// check if the filename is not yet duplicated
-				if (!allFilenames.containsKey(filename)) {
-					allFilenames.put(filename, fileWrapper);
+				if (!allFilenames.containsKey(virtualFilename)) {
+					allFilenames.put(virtualFilename, fileWrapper);
 					continue;
 				}
 
-				// this is the filename repeated
-				final FtpFileWrapper firstFileDuplicated = allFilenames.get(filename);
-				firstFileDuplicated.setVirtualName(encodeFilename(filename, firstFileDuplicated.getId()));
-
-				fileWrapper.setVirtualName(encodeFilename(filename, ftpFile.getId()));
+				// these are the repeated files
+				final FtpFileWrapper firstFileDuplicated = allFilenames.get(virtualFilename);
+				firstFileDuplicated.setVirtualName(encodeFilename(virtualFilename, firstFileDuplicated.getId()));
+				fileWrapper.setVirtualName(encodeFilename(virtualFilename, ftpFile.getId()));
 
 				LOG.info("Generated virtual filename for duplicated file '" + firstFileDuplicated.getName() + "'");
 				LOG.info("Generated virtual filename for duplicated file '" + fileWrapper.getName() + "'");

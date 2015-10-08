@@ -82,8 +82,7 @@ public final class Controller {
 			googleFile.setModifiedDate(new DateTime(patch.getLastModified()));
 		}
 
-		com.google.api.services.drive.model.File googleFileUpdated = googleDriveService.touchFile(ftpFile.getId(),
-				googleFile);
+		com.google.api.services.drive.model.File googleFileUpdated = googleDriveService.touchFile(ftpFile.getId(), googleFile);
 		if (googleFileUpdated != null) {
 			updaterService.updateNow(googleFileUpdated);
 			return true;
@@ -100,12 +99,8 @@ public final class Controller {
 		return ret;
 	}
 
-	public boolean mkdir(FTPGFile fTPGFile) {
-		if (fTPGFile.getName().contains(FILE_SEPARATOR)) {
-			throw new IllegalArgumentException("Filename cannot contain dots or slash chars");
-		}
-		// TODO: fix this
-		com.google.api.services.drive.model.File newDir = googleDriveService.mkdir("root", fTPGFile.getName());
+	public boolean mkdir(String parentFileId, FTPGFile fTPGFile) {
+		com.google.api.services.drive.model.File newDir = googleDriveService.mkdir(parentFileId, fTPGFile.getName());
 		boolean ret = newDir != null;
 		if (ret)
 			updaterService.updateNow(newDir.getId());
