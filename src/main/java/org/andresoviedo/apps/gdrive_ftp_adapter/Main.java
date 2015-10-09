@@ -10,6 +10,7 @@ import org.andresoviedo.apps.gdrive_ftp_adapter.model.Cache;
 import org.andresoviedo.apps.gdrive_ftp_adapter.model.SQLiteCache;
 import org.andresoviedo.apps.gdrive_ftp_adapter.service.FtpGdriveSynchService;
 import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.GFtpServerFactory;
+import org.andresoviedo.util.jar.JarUtils;
 import org.apache.ftpserver.FtpServerFactory;
 import org.apache.ftpserver.ftplet.FtpException;
 
@@ -19,15 +20,12 @@ import org.apache.ftpserver.ftplet.FtpException;
 // TODO: FTP parallelization seams not working with beyond compare?
 public final class Main {
 
-	private static final String VERSION = "1.0";
-
 	private static Main singleton;
 
 	@SuppressWarnings("unused")
 	private final Properties configuration;
 	private final org.apache.ftpserver.FtpServer server;
 	private final Cache cache;
-	@SuppressWarnings("unused")
 	private final FtpGdriveSynchService cacheUpdater;
 	private final Controller controller;
 
@@ -65,8 +63,9 @@ public final class Main {
 	}
 
 	private void init() {
-		System.out.println("Running Google-Drive-FTP-Adapter version '" + VERSION + "'...");
+		System.out.println("Running Google-Drive-FTP-Adapter...");
 
+		JarUtils.printManifestAttributesToString();
 	}
 
 	private void start() {
@@ -83,7 +82,7 @@ public final class Main {
 	public static Properties readConfiguration(String[] args) {
 		Properties configuration = new Properties();
 		String account = "pk1";
-		int port = 21;
+		int port = 1821;
 		if (args != null && args.length == 2) {
 			account = args[0];
 			if (!account.matches("^[\\w\\-. ]+$")) {

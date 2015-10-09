@@ -27,6 +27,10 @@
 		</filter>
 	</appender>
 
+	<logger name="org.springframework">
+		<level value="info" />
+	</logger>
+
 	<logger name="org.apache.mina">
 		<level value="info" />
 	</logger>
@@ -38,8 +42,7 @@
 	<root>
 		<priority value="debug" />
 		<appender-ref ref="console" />
-		<!-- TODO: uncomment this and revert console level from DEBUG to ERROR -->
-		<!-- <appender-ref ref="file" /> -->
+		<appender-ref ref="file" />
 	</root>
 
 </log4j:configuration>

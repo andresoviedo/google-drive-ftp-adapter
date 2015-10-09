@@ -12,7 +12,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -57,7 +56,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
 
-// TODO: validate all wrapper commands are working
 public class GFtpServerFactory extends FtpServerFactory {
 
 	private static final Log LOG = LogFactory.getLog(GFtpServerFactory.class);
@@ -92,7 +90,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 		// set the port of the listener
 		int port = (int) configuration.get("portNumber");
-		LOG.info("Http server configured at port '" + port + "'");
+		LOG.info("FTP server configured at port '" + port + "'");
 		ListenerFactory listenerFactory = new ListenerFactory();
 		listenerFactory.setPort(port);
 
@@ -189,18 +187,14 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 			private final FTPGFile gfile;
 
-			private final boolean exists;
-
 			/**
-			 * This is not final because this name can change if there is other file in the same folder with the same
-			 * name
+			 * This is not final because this name can change if there is other file in the same folder with the same name
 			 */
 			private String virtualName;
 
-			public FtpFileWrapper(FtpFileWrapper parent, FTPGFile ftpGFile, String virtualName, boolean exists) {
+			public FtpFileWrapper(FtpFileWrapper parent, FTPGFile ftpGFile, String virtualName) {
 				this.parent = parent;
 				this.gfile = ftpGFile;
-				this.exists = exists;
 				this.virtualName = virtualName;
 			}
 
@@ -213,9 +207,9 @@ public class GFtpServerFactory extends FtpServerFactory {
 				/**
 				 * This should handle the following 3 cases:
 				 * <ul>
-				 * <li>root: /</li>
-				 * <li>root/file: /file</li>
-				 * <li>root/folder/file: /folder/file</li>
+				 * <li>root = /</li>
+				 * <li>root/file = /file</li>
+				 * <li>root/folder/file = /folder/file</li>
 				 * </ul>
 				 */
 				return isRoot() ? virtualName : parent.isRoot() ? FILE_SEPARATOR + virtualName : parent.getAbsolutePath() + FILE_SEPARATOR
@@ -297,14 +291,6 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 			public FTPGFile unwrap() {
 				return gfile;
-			}
-
-			public boolean isExists() {
-				return exists;
-			}
-
-			public Set<String> getParents() {
-				return gfile.getParents();
 			}
 
 			// ---------------- SETTERS ------------------ //
@@ -420,7 +406,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 					if (currentDir == null) {
 						LOG.info("Initializing ftp view...");
 						// TODO: what happen if a file is named "root"?
-						this.home = new FtpFileWrapper(null, model.getFile("root"), "/", true);
+						this.home = new FtpFileWrapper(null, model.getFile("root"), "/");
 						this.currentDir = this.home;
 					}
 				}
@@ -665,7 +651,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 			String absolutePath = folder == null ? virtualFilename : folder.isRoot() ? FILE_SEPARATOR + virtualFilename : folder
 					.getAbsolutePath() + FILE_SEPARATOR + virtualFilename;
 			LOG.debug("Creating file wrapper " + absolutePath);
-			return new FtpFileWrapper(folder, gFile, virtualFilename, exists);
+			return new FtpFileWrapper(folder, gFile, virtualFilename);
 		}
 
 		public List<FtpFile> listFiles(FtpFileWrapper folder) {

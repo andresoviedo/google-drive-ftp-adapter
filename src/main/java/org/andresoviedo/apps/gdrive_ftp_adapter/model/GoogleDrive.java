@@ -16,7 +16,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
-import org.andresoviedo.apps.gdrive_ftp_adapter.controller.Controller;
 import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive.FTPGFile.MIME_TYPE;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
@@ -123,10 +122,6 @@ public class GoogleDrive {
 		 */
 		private long revision;
 		/**
-		 * Parent id to keep track where this file is located and to create new files if this is a folder
-		 */
-		private String parentId;
-		/**
 		 * Remove labels
 		 */
 		private Set<String> labels;
@@ -157,10 +152,6 @@ public class GoogleDrive {
 		 * Set of parent folder this file is in.
 		 */
 		private Set<String> parents;
-
-		/** ******************************************************** */
-
-		private transient Controller controller;
 
 		private transient java.io.File transferFile = null;
 

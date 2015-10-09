@@ -1,4 +1,4 @@
-![alt tag](https://googledrive.com/host/0BxpnQDC5hjw-RVlQTFM4ZzNWOVk/google-drive-ftp-adapter/icon.jpeg)
+![alt tag](http://www.andresoviedo.org/google-drive-ftp-adapter/icon.jpeg)
 
 
 Project info
@@ -10,25 +10,52 @@ http://gdriv.es/andresoviedo/google-drive-ftp-adapter
 Getting Started
 ===============
 
-Run application:
+*Windows:*
 
-    $ java -jar google-drive-ftp-adapter-1.0.1.jar [google_account_name ftp_port_number]
+1. Download the google-drive-ftp-adapter-1.1.0-bundle.zip
+2. Unzip it
+3. Execute windows-install-java.cmd
+4. Execute start.cmd to start ftp adapter at port 21.  The start2.cmd start ftp adapter at port 22
+5. Open you FTP application and point it to user@localhost
+6. Enjoy :)
 
-Program arguments:
+*Linux*
 
-* google_account_name: choose a name for your account. For example "Pep"
-* ftp_port_number: on Linux choose a port over 1024 (below 1024 are privileged ports). For example 1820
+1. Download the google-drive-ftp-adapter-1.1.0-bundle.zip
+2. Unzip it
+3. Double click on google-drive-ftp-adapter.jar or execute start.sh from command line
+4. Open you FTP application and point it to user@localhost
+5. Enjoy :)
 
-    $ java -jar google-drive-ftp-adapter-1.0.1.jar [google_account_name ftp_port_number]
+
+Configuration
+=============
+
+You can customize some application parameters in start script:
+ 
+    $ java -jar google-drive-ftp-adapter.jar [google_account_name ftp_port_number]
+
+Example:
+
+    $ java -jar google-drive-ftp-adapter.jar pk1 1921
+
+**google_account_name**
+
+You can have multiple ftp adapter listening at different ports to connect to the google drive account that is going to
+be associated to this *google_account_name* when the browser opens with the google dialog confirmation. Default is "pk1".
+
+**ftp_port_number**
+
+Tcp port number where the ftp adapter is going to listen for ftp clients. Default is 21. 
+In Linux this is a reserved port (below 1024 are privileged ports), so better work with a port like 1921. 
 
 
 ChangeLog
 =========
 
-* v2.0.0
-  * (n) Complete refactoring to simplify design and to allow adding more features that are just coming:
-    * FTP configurable users
-  * (f) Illegal filename handling. Property "illegalCharacters" to override.
-  * (f) Now FTP server really supports FileZilla 
+* v1.1.0 (09/10/2015)
+  * (n) Complete refactoring to simplify design and to allow adding more features    
+  * (f) Illegal filename handling. Property "illegalCharacters" to override
+  * (f) Fixed several issues. Tested with Beyond Compare, FileZilla & Telnet
 * v1.0.1
-  * (f) Changed google drive updater task from 10 minute to 10 seconds polling. 
+  * (f) Changed google drive updater task from 10 minute to 10 seconds polling 
