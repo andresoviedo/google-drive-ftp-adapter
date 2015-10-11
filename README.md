@@ -37,7 +37,7 @@ Notes
 =====
 
 - The google-drive-ftp-adapter DOES NOT synch your files to/from google drive. If you want to synch your files,
-  you should do it with another tool supporting FTP.
+  you should do it with your FTP tool.
 - Google drive supports repeated filenames in same folder and illegal file names in contrast to linux & windows. 
   But don't worry because this is supported!
 
@@ -117,29 +117,52 @@ your drive files. Example:
     $ ftp>
 
 
-Configuration
-=============
+Application Configuration
+=========================
 
-You can customize some application parameters in start script:
+The application works fine without configuration.  However, a default configuration.properties is provided
+in case you want to customize them.
+
+If you want, you can also customize the path of the configuration.properties when launching the app:
+    
+    $ java -jar google-drive-ftp-adapter.jar [propertiesFilename] 
+    
+Here are the application parameters you can customize:
  
-    $ java -jar google-drive-ftp-adapter.jar [google_account_name ftp_port_number]
+    # log4j.fileId if you have more than 1 instance of the app running
+    log4j.fileId=
+    
+    # account name associated to cache & google credentials 
+    account=default
+    
+    # FTP port listening for incoming connections
+    port=1821
+    
+    # FTP Enable anonymous login?
+    ftp.anonymous.enabled=false
+    
+    # FTP default user credentials
+    ftp.user=user
+    ftp.pass=user
+    
+    # Illegal characters for your file system so file copying works fine  
+    os.illegalCharacters=\\/|[\\x00-\\x1F\\x7F]|\\`|\\?|\\*|\\\\|\\<|\\>|\\||\\"|\\:
 
-Example:
-
-    $ java -jar google-drive-ftp-adapter.jar pk1 1821
 
 **google_account_name**
 
 This is the name associated to the cache & google credentials, so the next time you run the application you don't
-have to re-login or resynchronize all the application cache. This is also the name of the subfolder under "/data". 
-Default value is "pk1".
+have to re-login or resynchronize all the application cache. This is also the name of the subfolder under "/data"
+where information is going to be stored. Default value is "default".
 
 **ftp_port_number**
 
-Tcp port number where the ftp adapter is going to listen for ftp clients. Default FTP is 21, but In Linux 
-this is a reserved port (below 1024 are privileged ports), so better work with a port like 1821. The start2.cmd  
-start ftp adapter at port 22 in windows. 
-Default is 1821. 
+TCP port number where the ftp adapter is going to listen for ftp clients. Default FTP port is 21, but In Linux 
+this is a reserved port (below 1024 are privileged ports), so we better work with a port like 1821. Default is 1821.
+There is another start2.cmd as example (windows) that start an ftp adapter at port 22. 
+
+
+
 
 
 Known Problems
@@ -192,8 +215,12 @@ ChangeLog
 
 (f) fixed, (i) improved, (n) new feature
 
+- v1.2.0 (10/10/2015)
+ - (n) support for assembly application into jar-with-dependencies.jar
+ - (n) support for configuration.properties
+ - (n) new properties can be configured like "ftp.user", "ftp.pass" "os.illegalCharacters"
 - v1.1.0 (09/10/2015)
- - (n) Complete refactoring to simplify design and to allow adding more features    
+ - (i) Complete refactoring to simplify design and to allow adding more features    
  - (f) Illegal filename handling
  - (f) Fixed several issues. Tested with Beyond Compare, FileZilla & Telnet
 - v1.0.1

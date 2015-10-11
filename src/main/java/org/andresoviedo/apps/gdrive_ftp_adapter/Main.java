@@ -1,18 +1,17 @@
 package org.andresoviedo.apps.gdrive_ftp_adapter;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.net.Socket;
+import java.io.InputStream;
+import java.net.URL;
+import java.util.Arrays;
 import java.util.Properties;
-import java.util.regex.Pattern;
 
-import org.andresoviedo.apps.gdrive_ftp_adapter.controller.Controller;
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.Cache;
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.SQLiteCache;
-import org.andresoviedo.apps.gdrive_ftp_adapter.service.FtpGdriveSynchService;
-import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.GFtpServerFactory;
 import org.andresoviedo.util.jar.JarUtils;
-import org.apache.ftpserver.FtpServerFactory;
-import org.apache.ftpserver.ftplet.FtpException;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.log4j.Logger;
+import org.apache.log4j.xml.DOMConfigurator;
 
 // TODO: bug synching changes. First update from local storage will have
 // set max change id, so database will be "updated" for wrong.
@@ -20,71 +19,70 @@ import org.apache.ftpserver.ftplet.FtpException;
 // TODO: FTP parallelization seams not working with beyond compare?
 public final class Main {
 
-	private static Main singleton;
+	private static final Logger LOG = Logger.getLogger(Main.class);
 
-	@SuppressWarnings("unused")
-	private final Properties configuration;
-	private final org.apache.ftpserver.FtpServer server;
-	private final Cache cache;
-	private final FtpGdriveSynchService cacheUpdater;
-	private final Controller controller;
+	private static final String JVM_PROPERTY_LOG4J_FILE_PROPERTY_NAME = "log4j.configuration";
+
+	private static final String JVM_PROPERTY_LOG4J_FILE_ID_PROPERTY_NAME = "log4j.fileId";
+
+	private static GDriveFtpAdapter app;
 
 	public static void main(String[] args) {
 
-		singleton = new Main(readConfiguration(args));
-
-		// TODO: shutdown hook
-
-		singleton.init();
-		singleton.start();
-	}
-
-	public static Main getInstance() {
-		return singleton;
-	}
-
-	public Main(Properties configuration) {
-		this.configuration = configuration;
-
-		// set log4j system properties
-		System.setProperty("gdftpa.account", configuration.getProperty("account"));
-
-		cache = new SQLiteCache(configuration);
-
-		cacheUpdater = new FtpGdriveSynchService(configuration, cache);
-
-		controller = new Controller(cache);
-
-		// FTP Setup
-		FtpServerFactory serverFactory = new GFtpServerFactory(controller, cache, configuration);
-
-		server = serverFactory.createServer();
-
-	}
-
-	private void init() {
-		System.out.println("Running Google-Drive-FTP-Adapter...");
+		// configurePrimitiveLogging();
 
 		JarUtils.printManifestAttributesToString();
+
+		LOG.info("Program info: " + JarUtils.getManifestAttributesAsMap());
+
+		LOG.info("Started with args '" + Arrays.asList(args) + "'...");
+
+		// print again info so it's registered in the logs
+		LOG.info("Loading configuration...");
+
+		// Load properties from multiple sources
+		Properties configuration = loadPropertiesFromClasspath();
+		configuration.putAll(loadProperties("configuration.properties"));
+		if (args.length == 1 && !"configuration.properties".equals(args[0])) {
+			configuration.putAll(loadProperties(args[0]));
+		}
+		configuration.putAll(readCommandLineConfiguration(args));
+
+		// validate params
+		if (args.length == 2) {
+			// legacy version. see if below
+		} else if (args.length > 1) {
+			throw new IllegalArgumentException("usage: args [propertiesFile]");
+		}
+
+		// INFO: uncomment to support multiples user environments
+		// properties = new MultiProperties(properties);
+
+		configureLogging(configuration);
+
+		LOG.info("Creating application with configuration '" + configuration + "'");
+		app = new GDriveFtpAdapter(configuration);
+
+		registerShutdownHook();
+
+		start();
 	}
 
-	private void start() {
-		try {
-			cacheUpdater.start();
-			server.start();
-		} catch (FtpException e) {
-			throw new RuntimeException(e);
-		}
+	private static void start() {
+		app.start();
+	}
+
+	private static void stop() {
+		app.stop();
 	}
 
 	// ----------------------- Util. ----------------------- //
 
-	public static Properties readConfiguration(String[] args) {
+	public static Properties readCommandLineConfiguration(String[] args) {
 		Properties configuration = new Properties();
-		String account = "pk1";
-		int port = 1821;
 		if (args != null && args.length == 2) {
-			account = args[0];
+			String account = args[0];
+			int port = 1821;
 			if (!account.matches("^[\\w\\-. ]+$")) {
 				throw new IllegalArgumentException("Invalid argument. Illegal characters");
 			}
@@ -93,30 +91,102 @@ public final class Main {
 			} catch (NumberFormatException ex) {
 				throw new IllegalArgumentException("Invalid argument. Illegal port number: " + ex.getMessage());
 			}
+			configuration.put("account", account);
+			configuration.put("port", String.valueOf(port));
 		}
-
-		if (!available(port)) {
-			throw new IllegalArgumentException("Invalid argument. Port '" + port + "' already in used");
-		}
-		configuration.put("account", account);
-		configuration.put("portNumber", port);
-
-		// illegal characters.. better with regex
-		// final Character[] ILLEGAL_CHARACTERS = { '/', '\n', '\r', '\t', '\0', '\f', '`', '?', '*', '\\', '<', '>',
-		// '|', '\"', ':' };
-
-		// regex for controlling illegal names
-		String regex = "\\/|[\\x00-\\x1F\\x7F]|\\`|\\?|\\*|\\\\|\\<|\\>|\\||\\\"|\\:";
-		configuration.put("illegalCharacters", Pattern.compile(regex));
 		return configuration;
 	}
 
-	private static boolean available(int port) {
-		try (Socket ignored = new Socket("localhost", port)) {
-			return false;
-		} catch (IOException ignored) {
-			return true;
-		}
+	private static void registerShutdownHook() {
+		Runtime.getRuntime().addShutdownHook(new Thread() {
+			@Override
+			public void run() {
+				LOG.info("Shuting down...");
+				Main.stop();
+				LOG.info("Good bye!");
+			}
+		});
 	}
 
+	private static Properties loadProperties(String propertiesFilename) {
+		Properties properties = new Properties();
+		FileInputStream inStream = null;
+		try {
+			LOG.info("Loading properfiles file '" + propertiesFilename + "'...");
+			inStream = new FileInputStream(propertiesFilename);
+			properties.load(inStream);
+		} catch (Exception ex) {
+			LOG.warn("Exception loading file '" + propertiesFilename + "'.");
+			// loadPropertiesFromClasspath();
+		} finally {
+			if (inStream != null) {
+				try {
+					inStream.close();
+				} catch (Exception ex) {
+					LOG.error(ex.getMessage(), ex);
+				}
+			}
+		}
+		LOG.info("Properfiles loaded: '" + properties + "'");
+		return properties;
+	}
+
+	static Properties loadPropertiesFromClasspath() {
+		Properties properties = new Properties();
+
+		InputStream configurationStream = Main.class.getResourceAsStream("/configuration.properties");
+		if (configurationStream == null) {
+			return properties;
+		}
+
+		try {
+			LOG.info("Loading properties from classpath...");
+			properties.load(configurationStream);
+			LOG.info("Properties loaded: '" + properties + "'");
+		} catch (IOException ex) {
+			// this should never happen!
+			ex.printStackTrace();
+		} finally {
+			if (configurationStream != null) {
+				try {
+					configurationStream.close();
+				} catch (Exception ex) {
+					LOG.error(ex.getMessage(), ex);
+				}
+			}
+		}
+		return properties;
+	}
+
+	private static void configureLogging(Properties properties) {
+		try {
+			String log4jFilename = properties.getProperty(JVM_PROPERTY_LOG4J_FILE_PROPERTY_NAME);
+			if (StringUtils.isBlank(log4jFilename)) {
+				LOG.info("Property '" + JVM_PROPERTY_LOG4J_FILE_PROPERTY_NAME
+						+ "' was not specified in application properties. Using defaults.");
+				log4jFilename = "classpath:/log4j.xml";
+			}
+
+			System.setProperty("log4j.fileId", properties.getProperty(JVM_PROPERTY_LOG4J_FILE_ID_PROPERTY_NAME, ""));
+
+			final File file = new File(log4jFilename);
+			if (file.exists()) {
+				LOG.info("Configuring log4j with file '" + file.getAbsolutePath() + "'...");
+				DOMConfigurator.configure(log4jFilename.substring(10));
+			} else if (log4jFilename.startsWith("classpath:")) {
+				LOG.info("Configuring log4j from 'classpath:/log4j.xml'");
+				URL log4j_resource = Main.class.getResource("/log4j.xml");
+				if (log4j_resource == null) {
+					LOG.warn("Resource '/log4j.xml' not found on classpath. Logging to file system not enabled.");
+				} else {
+					DOMConfigurator.configure(log4j_resource);
+				}
+			} else {
+				LOG.warn("Log4j couldn't be configured. Logs wont be written to file.");
+			}
+
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+	}
 }

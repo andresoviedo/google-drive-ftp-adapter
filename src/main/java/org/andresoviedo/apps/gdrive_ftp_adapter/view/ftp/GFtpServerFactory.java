@@ -64,6 +64,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 	private final Cache model;
 	private final Properties configuration;
 
+	private static final String DEFAULT_ILLEGAL_CHARS_REGEX = "\\/|[\\x00-\\x1F\\x7F]|\\`|\\?|\\*|\\\\|\\<|\\>|\\||\\\"|\\:";
 	private final Pattern illegalChars;
 
 	public GFtpServerFactory(Controller controller, Cache model, Properties configuration) {
@@ -71,7 +72,8 @@ public class GFtpServerFactory extends FtpServerFactory {
 		this.controller = controller;
 		this.model = model;
 		this.configuration = configuration;
-		this.illegalChars = (Pattern) configuration.get("illegalCharacters");
+		this.illegalChars = Pattern.compile(configuration.getProperty("os.illegalCharacters", DEFAULT_ILLEGAL_CHARS_REGEX));
+		LOG.info("Configured illegalchars '"+illegalChars+"'");
 		init();
 	}
 
@@ -89,7 +91,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 		setCommandFactory(ccf.createCommandFactory());
 
 		// set the port of the listener
-		int port = (int) configuration.get("portNumber");
+		int port = Integer.parseInt(configuration.getProperty("port", String.valueOf(1821)));
 		LOG.info("FTP server configured at port '" + port + "'");
 		ListenerFactory listenerFactory = new ListenerFactory();
 		listenerFactory.setPort(port);
@@ -109,28 +111,30 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 	class FtpUserManager extends AbstractUserManager {
 
-		private BaseUser testUser;
+		private BaseUser defaultUser;
 		private BaseUser anonUser;
 
 		public FtpUserManager(String adminName, PasswordEncryptor passwordEncryptor) {
 			super(adminName, passwordEncryptor);
 
-			testUser = new BaseUser();
-			testUser.setAuthorities(Arrays.asList(new Authority[] { new ConcurrentLoginPermission(1, 1) }));
-			testUser.setEnabled(true);
-			testUser.setHomeDirectory("c:\\temp");
-			testUser.setMaxIdleTime(10000);
-			testUser.setName("user");
-			testUser.setPassword("user");
+			defaultUser = new BaseUser();
+			defaultUser.setAuthorities(Arrays.asList(new Authority[] { new ConcurrentLoginPermission(1, 1) }));
+			defaultUser.setEnabled(true);
+			defaultUser.setHomeDirectory("c:\\temp");
+			defaultUser.setMaxIdleTime(300);
+			defaultUser.setName(configuration.getProperty("ftp.user", "user"));
+			defaultUser.setPassword(configuration.getProperty("ftp.pass", "user"));
+			LOG.info("FTP User Manager configured for user '"+defaultUser.getName()+"'");
 
-			anonUser = new BaseUser(testUser);
+			anonUser = new BaseUser(defaultUser);
 			anonUser.setName("anonymous");
+			anonUser.setEnabled(Boolean.valueOf(configuration.getProperty("ftp.anonymous.enabled", "false")));
 		}
 
 		@Override
 		public User getUserByName(String username) throws FtpException {
-			if ("andres".equals(username)) {
-				return testUser;
+			if (defaultUser.getName().equals(username)) {
+				return defaultUser;
 			} else if (anonUser.getName().equals(username)) {
 				return anonUser;
 			}
@@ -140,7 +144,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 		@Override
 		public String[] getAllUserNames() throws FtpException {
-			return new String[] { "user", anonUser.getName() };
+			return new String[] { defaultUser.getName(), anonUser.getName() };
 		}
 
 		@Override
@@ -156,7 +160,8 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 		@Override
 		public boolean doesExist(String username) throws FtpException {
-			return ("user".equals(username) || anonUser.getName().equals(username)) ? true : false;
+			return ((defaultUser.getEnabled() && defaultUser.getName().equals(username)) || (anonUser.getEnabled() && anonUser.getName().equals(
+					username))) ? true : false;
 		}
 
 		@Override
@@ -164,15 +169,16 @@ public class GFtpServerFactory extends FtpServerFactory {
 			if (UsernamePasswordAuthentication.class.isAssignableFrom(authentication.getClass())) {
 				UsernamePasswordAuthentication upAuth = (UsernamePasswordAuthentication) authentication;
 
-				if ("user".equals(upAuth.getUsername()) && "user".equals(upAuth.getPassword())) {
-					return testUser;
+				if (defaultUser.getEnabled() && defaultUser.getName().equals(upAuth.getUsername())
+						&& defaultUser.getPassword().equals(upAuth.getPassword())) {
+					return defaultUser;
 				}
 
-				if (anonUser.getName().equals(upAuth.getUsername())) {
+				if (anonUser.getEnabled() && anonUser.getName().equals(upAuth.getUsername())) {
 					return anonUser;
 				}
 			} else if (AnonymousAuthentication.class.isAssignableFrom(authentication.getClass())) {
-				return anonUser;
+				return anonUser.getEnabled() ? anonUser : null;
 			}
 
 			return null;

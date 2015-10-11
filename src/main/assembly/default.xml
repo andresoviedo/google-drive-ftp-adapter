@@ -14,6 +14,10 @@
 			<source>README.md</source>
 			<outputDirectory>/</outputDirectory>
 		</file>
+		<file>
+			<source>src/main/resources/configuration.properties</source>
+			<outputDirectory>/</outputDirectory>
+		</file>
 	</files>
 
 	<fileSets>

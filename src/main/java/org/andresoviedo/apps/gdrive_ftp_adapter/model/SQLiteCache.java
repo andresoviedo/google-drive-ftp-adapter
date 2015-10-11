@@ -58,11 +58,7 @@ public final class SQLiteCache implements Cache {
 		this.configuration = configuration;
 
 		// initialize the data store factory
-		String account = configuration.getProperty("account");
-		if (account.equals("pk1")) {
-			// TODO: this should be a file migration process
-			account = "cache";
-		}
+		String account = configuration.getProperty("account", "default");
 		File dataDir = new File("data" + File.separator + account);
 		if (!dataDir.exists()) {
 			LOG.info("Creating cache '" + dataDir + "'...");
@@ -100,16 +96,15 @@ public final class SQLiteCache implements Cache {
 			}
 		};
 
-		Integer ret = jdbcTemplate.queryForObject("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='"
-				+ TABLE_FILES + "';", Integer.class);
+		Integer ret = jdbcTemplate.queryForObject("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='" + TABLE_FILES + "';",
+				Integer.class);
 		if (ret == 0) {
 			List<String> queries = new ArrayList<String>();
 			queries.add("create table " + TABLE_FILES + " (id text, revision integer, "
 					+ "filename text not null, isDirectory boolean, length integer, lastModified integer, "
 					+ "md5Checksum text, primary key (id))");
-			queries.add("create table " + TABLE_CHILDS + " (id integer primary key, childId text references "
-					+ TABLE_FILES + "(id), parentId text references " + TABLE_FILES
-					+ "(id), unique (childId, parentId))");
+			queries.add("create table " + TABLE_CHILDS + " (id integer primary key, childId text references " + TABLE_FILES
+					+ "(id), parentId text references " + TABLE_FILES + "(id), unique (childId, parentId))");
 			queries.add("create index idx_filename on " + TABLE_FILES + " (filename)");
 			jdbcTemplate.batchUpdate(queries.toArray(new String[queries.size()]));
 
@@ -131,8 +126,8 @@ public final class SQLiteCache implements Cache {
 		r.lock();
 		try {
 			LOG.trace("getFile(" + id + ")");
-			FTPGFile file = (FTPGFile) jdbcTemplate.queryForObject("select * from " + TABLE_FILES + " where id=?",
-					new Object[] { id }, rowMapper);
+			FTPGFile file = (FTPGFile) jdbcTemplate.queryForObject("select * from " + TABLE_FILES + " where id=?", new Object[] { id },
+					rowMapper);
 			return file;
 		} catch (EmptyResultDataAccessException ex) {
 			return null;
@@ -149,8 +144,8 @@ public final class SQLiteCache implements Cache {
 		// +
 		// " (id,revision,filename,isDirectory,length,lastModified,md5checksum)"
 		// + " values(?,?,?,?,?,?,?)");
-		queries.add("insert or replace into " + TABLE_FILES
-				+ " (id, revision,filename,isDirectory,length,lastModified,md5checksum)" + " values(?,?,?,?,?,?,?)");
+		queries.add("insert or replace into " + TABLE_FILES + " (id, revision,filename,isDirectory,length,lastModified,md5checksum)"
+				+ " values(?,?,?,?,?,?,?)");
 		args.add(new Object[] { file.getId(), file.getRevision(), file.getName(), file.isDirectory(), file.getLength(),
 				file.getLastModified(), file.getMd5Checksum() });
 
@@ -160,8 +155,8 @@ public final class SQLiteCache implements Cache {
 	}
 
 	void addFile(FTPGFile file, List<String> queries, List<Object[]> args) {
-		queries.add("insert into " + TABLE_FILES
-				+ " (id, revision,filename,isDirectory,length,lastModified,md5checksum)" + " values(?,?,?,?,?,?,?)");
+		queries.add("insert into " + TABLE_FILES + " (id, revision,filename,isDirectory,length,lastModified,md5checksum)"
+				+ " values(?,?,?,?,?,?,?)");
 		args.add(new Object[] { file.getId(), file.getRevision(), file.getName(), file.isDirectory(), file.getLength(),
 				file.getLastModified(), file.getMd5Checksum() });
 	}
@@ -173,16 +168,15 @@ public final class SQLiteCache implements Cache {
 		queries.add("delete from " + TABLE_CHILDS + " where parentId=?");
 		args.add(new Object[] { file.getId() });
 
-		queries.add("update " + TABLE_FILES
-				+ " set revision=?,filename=?,isDirectory=?,length=?,lastModified=?,md5checksum=? where id=?");
-		args.add(new Object[] { file.getRevision(), file.getName(), file.isDirectory(), file.getLength(),
-				file.getLastModified(), file.getMd5Checksum(), file.getId() });
+		queries.add("update " + TABLE_FILES + " set revision=?,filename=?,isDirectory=?,length=?,lastModified=?,md5checksum=? where id=?");
+		args.add(new Object[] { file.getRevision(), file.getName(), file.isDirectory(), file.getLength(), file.getLastModified(),
+				file.getMd5Checksum(), file.getId() });
 
 		for (FTPGFile child : childs) {
-			queries.add("insert or replace into " + TABLE_FILES
-					+ " (id,revision,filename,isDirectory,length,lastModified,md5checksum)" + " values(?,?,?,?,?,?,?)");
-			args.add(new Object[] { child.getId(), child.getRevision(), child.getName(), child.isDirectory(),
-					child.getLength(), child.getLastModified(), child.getMd5Checksum() });
+			queries.add("insert or replace into " + TABLE_FILES + " (id,revision,filename,isDirectory,length,lastModified,md5checksum)"
+					+ " values(?,?,?,?,?,?,?)");
+			args.add(new Object[] { child.getId(), child.getRevision(), child.getName(), child.isDirectory(), child.getLength(),
+					child.getLastModified(), child.getMd5Checksum() });
 
 			for (String parent : child.getParents()) {
 				queries.add("insert into " + TABLE_CHILDS + " (childId,parentId) values(?,?)");
@@ -267,12 +261,11 @@ public final class SQLiteCache implements Cache {
 
 	@Override
 	public boolean updateFile(FTPGFile file) {
-		return jdbcTemplate
-				.update("update "
-						+ TABLE_FILES
+		return jdbcTemplate.update(
+				"update " + TABLE_FILES
 						+ " set revision=?,filename=?,isDirectory=?,length=?,lastModified=?,md5checksum=? where id=? and revision < ?",
-						new Object[] { file.getRevision(), file.getName(), file.isDirectory(), file.getLength(),
-								file.getLastModified(), file.getMd5Checksum(), file.getId(), file.getRevision() }) == 1;
+				new Object[] { file.getRevision(), file.getName(), file.isDirectory(), file.getLength(), file.getLastModified(),
+						file.getMd5Checksum(), file.getId(), file.getRevision() }) == 1;
 	}
 
 	// public void updateFileAndParents(FTPGFile patch) {
@@ -317,9 +310,9 @@ public final class SQLiteCache implements Cache {
 		System.out.println();
 		r.lock();
 		try {
-			final List<FTPGFile> query = jdbcTemplate.query("select " + TABLE_FILES + ".* from " + TABLE_FILES + ","
-					+ TABLE_CHILDS + " where " + TABLE_CHILDS + ".childId=" + TABLE_FILES + ".id and " + TABLE_CHILDS
-					+ ".parentId=?", new Object[] { parentId }, rowMapper);
+			final List<FTPGFile> query = jdbcTemplate.query("select " + TABLE_FILES + ".* from " + TABLE_FILES + "," + TABLE_CHILDS
+					+ " where " + TABLE_CHILDS + ".childId=" + TABLE_FILES + ".id and " + TABLE_CHILDS + ".parentId=?",
+					new Object[] { parentId }, rowMapper);
 			return query;
 		} finally {
 			r.unlock();
@@ -330,11 +323,10 @@ public final class SQLiteCache implements Cache {
 		r.lock();
 		try {
 			if (revision != -1) {
-				return jdbcTemplate.queryForList("select id from " + TABLE_FILES
-						+ " where isDirectory=1 and revision = ?", new Object[] { revision }, String.class);
+				return jdbcTemplate.queryForList("select id from " + TABLE_FILES + " where isDirectory=1 and revision = ?",
+						new Object[] { revision }, String.class);
 			} else {
-				return jdbcTemplate
-						.queryForList("select id from " + TABLE_FILES + " where isDirectory=1", String.class);
+				return jdbcTemplate.queryForList("select id from " + TABLE_FILES + " where isDirectory=1", String.class);
 			}
 		} finally {
 			r.unlock();
@@ -350,10 +342,9 @@ public final class SQLiteCache implements Cache {
 	public FTPGFile getFileByName(String parentId, String filename) throws IncorrectResultSizeDataAccessException {
 		r.lock();
 		try {
-			final FTPGFile query = (FTPGFile) jdbcTemplate.queryForObject("select " + TABLE_FILES + ".* from "
-					+ TABLE_CHILDS + "," + TABLE_FILES + " where " + TABLE_CHILDS + ".childId=" + TABLE_FILES
-					+ ".id and " + TABLE_CHILDS + ".parentId=? and " + TABLE_FILES + ".filename=?", new Object[] {
-					parentId, filename }, rowMapper);
+			final FTPGFile query = (FTPGFile) jdbcTemplate.queryForObject("select " + TABLE_FILES + ".* from " + TABLE_CHILDS + ","
+					+ TABLE_FILES + " where " + TABLE_CHILDS + ".childId=" + TABLE_FILES + ".id and " + TABLE_CHILDS + ".parentId=? and "
+					+ TABLE_FILES + ".filename=?", new Object[] { parentId, filename }, rowMapper);
 			return query;
 		} catch (EmptyResultDataAccessException ex) {
 			return null;
@@ -408,8 +399,7 @@ public final class SQLiteCache implements Cache {
 		r.lock();
 		try {
 
-			return jdbcTemplate.queryForObject("select min(revision) from " + TABLE_FILES + " where revision > 0",
-					Long.class);
+			return jdbcTemplate.queryForObject("select min(revision) from " + TABLE_FILES + " where revision > 0", Long.class);
 		} finally {
 			r.unlock();
 		}

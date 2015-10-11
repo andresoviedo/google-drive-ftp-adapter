@@ -69,20 +69,15 @@ public class GoogleDrive {
 
 		public static enum MIME_TYPE {
 
-			GOOGLE_AUDIO("application/vnd.google-apps.audio", "audio"), GOOGLE_DOC(
-					"application/vnd.google-apps.document", "Google Docs"), GOOGLE_DRAW(
-					"application/vnd.google-apps.drawing", "Google Drawing"), GOOGLE_FILE(
-					"application/vnd.google-apps.file", "Google  Drive file"), GOOGLE_FOLDER(
-					"application/vnd.google-apps.folder", "Google  Drive folder"), GOOGLE_FORM(
-					"application/vnd.google-apps.form", "Google  Forms"), GOOGLE_FUSION(
-					"application/vnd.google-apps.fusiontable", "Google  Fusion Tables"), GOOGLE_PHOTO(
-					"application/vnd.google-apps.photo", "photo"), GOOGLE_SLIDE(
-					"application/vnd.google-apps.presentation", "Google  Slides"), GOOGLE_PPT(
-					"application/vnd.google-apps.script", "Google  Apps Scripts"), GOOGLE_SITE(
-					"application/vnd.google-apps.sites", "Google  Sites"), GOOGLE_SHEET(
-					"application/vnd.google-apps.spreadsheet", "Google  Sheets"), GOOGLE_UNKNOWN(
-					"application/vnd.google-apps.unknown", "unknown"), GOOGLE_VIDEO(
-					"application/vnd.google-apps.video", "video");
+			GOOGLE_AUDIO("application/vnd.google-apps.audio", "audio"), GOOGLE_DOC("application/vnd.google-apps.document", "Google Docs"), GOOGLE_DRAW(
+					"application/vnd.google-apps.drawing", "Google Drawing"), GOOGLE_FILE("application/vnd.google-apps.file",
+					"Google  Drive file"), GOOGLE_FOLDER("application/vnd.google-apps.folder", "Google  Drive folder"), GOOGLE_FORM(
+					"application/vnd.google-apps.form", "Google  Forms"), GOOGLE_FUSION("application/vnd.google-apps.fusiontable",
+					"Google  Fusion Tables"), GOOGLE_PHOTO("application/vnd.google-apps.photo", "photo"), GOOGLE_SLIDE(
+					"application/vnd.google-apps.presentation", "Google  Slides"), GOOGLE_PPT("application/vnd.google-apps.script",
+					"Google  Apps Scripts"), GOOGLE_SITE("application/vnd.google-apps.sites", "Google  Sites"), GOOGLE_SHEET(
+					"application/vnd.google-apps.spreadsheet", "Google  Sheets"), GOOGLE_UNKNOWN("application/vnd.google-apps.unknown",
+					"unknown"), GOOGLE_VIDEO("application/vnd.google-apps.video", "video");
 
 			private final String value;
 			private final String desc;
@@ -158,8 +153,8 @@ public class GoogleDrive {
 		private transient URL downloadUrl;
 
 		/**
-		 * Because a file can have multiple parents, this instance could be duplicated. Current parent so, is the link
-		 * to the selected container.
+		 * Because a file can have multiple parents, this instance could be duplicated. Current parent so, is the link to the selected
+		 * container.
 		 */
 		private transient FTPGFile currentParent;
 
@@ -412,8 +407,8 @@ public class GoogleDrive {
 	private static Log logger = LogFactory.getLog(GoogleDrive.class);
 
 	/**
-	 * Be sure to specify the name of your application. If the application name is {@code null} or blank, the
-	 * application will log a warning. Suggested format is "MyCompany-ProductName/1.0".
+	 * Be sure to specify the name of your application. If the application name is {@code null} or blank, the application will log a
+	 * warning. Suggested format is "MyCompany-ProductName/1.0".
 	 */
 	private static final String APPLICATION_NAME = "google-drive-ftp-adapter";
 
@@ -421,8 +416,8 @@ public class GoogleDrive {
 	private java.io.File DATA_STORE_DIR;
 
 	/**
-	 * Global instance of the {@link DataStoreFactory}. The best practice is to make it a single globally shared
-	 * instance across your application.
+	 * Global instance of the {@link DataStoreFactory}. The best practice is to make it a single globally shared instance across your
+	 * application.
 	 */
 	private FileDataStoreFactory dataStoreFactory;
 
@@ -461,7 +456,7 @@ public class GoogleDrive {
 	private Drive drive;
 
 	private GoogleDrive(Properties configuration) {
-		DATA_STORE_DIR = new java.io.File("data/google/" + configuration.get("account"));
+		DATA_STORE_DIR = new java.io.File("data/google/" + configuration.getProperty("account", "default"));
 
 		try {
 			// initialize the data store factory
@@ -482,10 +477,9 @@ public class GoogleDrive {
 			credential = authorize();
 
 			// set up global Drive instance
-			drive = new Drive.Builder(httpTransport, JSON_FACTORY, credential).setApplicationName(APPLICATION_NAME)
-					.build();
+			drive = new Drive.Builder(httpTransport, JSON_FACTORY, credential).setApplicationName(APPLICATION_NAME).build();
 
-			logger.info("Success! Now add code here.");
+			logger.info("Google drive webservice client initialized.");
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
@@ -498,11 +492,10 @@ public class GoogleDrive {
 				new InputStreamReader(FTPGFile.class.getResourceAsStream("/client_secrets.json")));
 		if (clientSecrets.getDetails().getClientId().startsWith("Enter")
 				|| clientSecrets.getDetails().getClientSecret().startsWith("Enter ")) {
-			System.out
-					.println("Overwrite the src/main/resources/client_secrets.json file with the client secrets file "
-							+ "you downloaded from the Quickstart tool or manually enter your Client ID and Secret "
-							+ "from https://code.google.com/apis/console/?api=drive#project:275751503302 "
-							+ "into src/main/resources/client_secrets.json");
+			System.out.println("Overwrite the src/main/resources/client_secrets.json file with the client secrets file "
+					+ "you downloaded from the Quickstart tool or manually enter your Client ID and Secret "
+					+ "from https://code.google.com/apis/console/?api=drive#project:275751503302 "
+					+ "into src/main/resources/client_secrets.json");
 			System.exit(1);
 		}
 
@@ -526,8 +519,8 @@ public class GoogleDrive {
 		scopes.add(DriveScopes.DRIVE_READONLY);
 		scopes.add(DriveScopes.DRIVE_SCRIPTS);
 
-		GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(httpTransport, JSON_FACTORY,
-				clientSecrets, scopes).setDataStoreFactory(dataStoreFactory).build();
+		GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(httpTransport, JSON_FACTORY, clientSecrets, scopes)
+				.setDataStoreFactory(dataStoreFactory).build();
 		// authorize
 		return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
 	}
@@ -623,12 +616,10 @@ public class GoogleDrive {
 						"application/vnd.openxmlformats-officedocument.wordprocessingml.document")));
 				break;
 			default:
-				if (googleFile != null && googleFile.getDownloadUrl() != null
-						&& googleFile.getDownloadUrl().length() > 0) {
+				if (googleFile != null && googleFile.getDownloadUrl() != null && googleFile.getDownloadUrl().length() > 0) {
 					jfsgDriveFile.setDownloadUrl(new URL(googleFile.getDownloadUrl()));
 				} else {
-					throw new RuntimeException("No se ha podido obtener la URL de descarga del fichero '"
-							+ jfsgDriveFile.getName() + "'");
+					throw new RuntimeException("No se ha podido obtener la URL de descarga del fichero '" + jfsgDriveFile.getName() + "'");
 				}
 			}
 		} catch (MalformedURLException e) {
@@ -659,8 +650,7 @@ public class GoogleDrive {
 				return null;
 			}
 
-			HttpResponse resp = drive.getRequestFactory()
-					.buildGetRequest(new GenericUrl(jfsgDriveFile.getDownloadUrl())).execute();
+			HttpResponse resp = drive.getRequestFactory().buildGetRequest(new GenericUrl(jfsgDriveFile.getDownloadUrl())).execute();
 
 			tmpFile = java.io.File.createTempFile("gdrive-synch-", ".download");
 			is = resp.getContent();
@@ -713,8 +703,7 @@ public class GoogleDrive {
 			FileContent mediaContent = null;
 			if (!jfsgFile.isDirectory() && jfsgFile.getTransferFile() != null) {
 				logger.info("Uploading file '" + jfsgFile.getTransferFile() + "'...");
-				mediaContent = new FileContent(
-						java.nio.file.Files.probeContentType(jfsgFile.getTransferFile().toPath()),
+				mediaContent = new FileContent(java.nio.file.Files.probeContentType(jfsgFile.getTransferFile().toPath()),
 						jfsgFile.getTransferFile());
 			}
 			if (!jfsgFile.isExists()) {
@@ -724,8 +713,7 @@ public class GoogleDrive {
 					file.setMimeType("application/vnd.google-apps.folder");
 				}
 				file.setTitle(jfsgFile.getName());
-				file.setModifiedDate(new DateTime(jfsgFile.getLastModified() != 0 ? jfsgFile.getLastModified() : System
-						.currentTimeMillis()));
+				file.setModifiedDate(new DateTime(jfsgFile.getLastModified() != 0 ? jfsgFile.getLastModified() : System.currentTimeMillis()));
 
 				List<ParentReference> newParents = new ArrayList<ParentReference>(1);
 				if (jfsgFile.getParents() != null) {
@@ -734,8 +722,7 @@ public class GoogleDrive {
 					}
 
 				} else {
-					newParents = Collections.singletonList(new ParentReference().setId(jfsgFile.getCurrentParent()
-							.getId()));
+					newParents = Collections.singletonList(new ParentReference().setId(jfsgFile.getCurrentParent().getId()));
 				}
 				file.setParents(newParents);
 
@@ -755,8 +742,7 @@ public class GoogleDrive {
 						switch (mimeType) {
 						case GOOGLE_DOC:
 						case GOOGLE_SHEET:
-							logger.info("Converting file to google docs format "
-									+ "because it was already in google docs format");
+							logger.info("Converting file to google docs format " + "because it was already in google docs format");
 							updateRequest.setConvert(true);
 							break;
 						default:

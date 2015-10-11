@@ -15,7 +15,7 @@
 	</appender>
 
 	<appender name="file" class="org.apache.log4j.RollingFileAppender">
-		<param name="file" value="google-drive-ftp-adapter-${gdftpa.account}.log" />
+		<param name="file" value="google-drive-ftp-adapter${log4j.fileId}.log" />
 		<param name="MaxFileSize" value="5MB" />
 		<param name="MaxBackupIndex" value="1" />
 		<layout class="org.apache.log4j.PatternLayout">

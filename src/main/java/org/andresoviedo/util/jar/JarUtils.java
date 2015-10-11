@@ -7,10 +7,13 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
 import java.security.CodeSource;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Vector;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
@@ -89,10 +92,27 @@ public class JarUtils {
 		}
 	}
 
+	public static Map<String, String> getManifestAttributesAsMap() {
+		try {
+			Attributes attrs = getManifestAttributes();
+			if (attrs == null) {
+				return Collections.emptyMap();
+			}
+			Map<String, String> ret = new HashMap<String, String>(attrs.size());
+			for (Entry<Object, Object> entry : attrs.entrySet()) {
+				ret.put(String.valueOf(entry.getKey()), String.valueOf(entry.getValue()));
+			}
+			return ret;
+		} catch (Exception ex) {
+			System.err.println("Error reading MANIFEST.MF: " + ex.getMessage());
+			return null;
+		}
+	}
+
 	/**
-	 * Will perform an initial read of all files and will build a cache for fast search. Call this method at the
-	 * beginning if you plan to work with a constant set of files and its contents won't change. To reset the cache call
-	 * <code>rescan(new Files[0])</code>. Files can be .jar files, directories, etc.
+	 * Will perform an initial read of all files and will build a cache for fast search. Call this method at the beginning if you plan to
+	 * work with a constant set of files and its contents won't change. To reset the cache call <code>rescan(new Files[0])</code>. Files can
+	 * be .jar files, directories, etc.
 	 */
 	public static void rescan(File[] files) {
 		// Clean the cache.
