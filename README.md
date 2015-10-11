@@ -1,5 +1,14 @@
 ![alt tag](http://www.andresoviedo.org/google-drive-ftp-adapter/icon.jpeg)
 
+News
+====
+
+**New version** v1.2.0 - 11 October 2015
+- https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-jar-with-dependencies.jar
+- https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-1.2.0-bundle.zip
+
+**New features**: ftp configuration  
+
 
 About
 =====
@@ -28,9 +37,11 @@ Features
 Screenshots
 ===========
 
-![alt tag](http://www.andresoviedo.org/google-drive-ftp-adapter/screenshot.jpg)
-![alt tag](http://www.andresoviedo.org/google-drive-ftp-adapter/screenshot0.jpg)
-![alt tag](http://www.andresoviedo.org/google-drive-ftp-adapter/screenshot1.jpg)
+![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-win32-start.jpg)
+![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-beyond-compare.jpg)
+![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-filezilla.jpg)
+![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-shell-ftp.jpg)
+![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-google-dialog.jpg)
 
 
 Notes
@@ -57,36 +68,33 @@ http://www.andresoviedo.org/google-drive-ftp-adapter
 Download
 ========
 
-Latest version 1.1.0 (10/10/2015)  
-- https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-1.1.0-bundle.zip
+Latest version 1.2.0 (11/10/2015)  
+- https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-1.2.0-bundle.zip
+
+
+Buid It!
+=======
+
+The project is packaged with maven. If you want to build it just download project, compile it and run java with "org.andresoviedo.apps.gdrive_ftp_adapter.Main"
 
 
 Run it!
 ======
 
-1. Download project & compile source code with maven and the launch the 'org.andresoviedo.apps.gdrive_ftp_adapter.Main.class'.
-2. Or:
 
-*Windows:*
+- If you have already JAVA installed download jar-with-dependencies.jar and double click on it or run from command line:
 
-1. Download the google-drive-ftp-adapter-1.1.0-bundle.zip
-2. Unzip it
-3. Execute windows-install-java.cmd
-4. Execute start.cmd to start ftp adapter at port 21.
-5. Open you FTP application and point it to user@localhost
-6. Enjoy :)
+    $ java -jar google-drive-ftp-adapter-jar-with-dependencies.jar
+    
+- If you don't have JAVA installed and you are in Windows:
+  - Download the google-drive-ftp-adapter-bundle.zip
+  - Unzip it
+  - Execute windows-install-java.cmd
+  - Execute start.cmd
+- Once the application is started, a Google authorization dialog in your Internet browser will ask you to allow
+google drive ftp application to acces your files. Click "OK". 
 
-*Linux*
-
-1. Download the google-drive-ftp-adapter-1.1.0-bundle.zip
-2. Unzip it
-3. Double click on google-drive-ftp-adapter.jar or execute start.sh from command line
-4. Open you FTP application and point it to user@localhost port:1821
-5. Enjoy :)
-
-
-Once the application is started, a Google authorization dialog will ask you to allow google drive ftp application
-to acces your files. Click "OK". Now you can use ftp://user:user@localhost/ from your application to to connect 
+- Now you can use ftp://user:user@localhost/ from your application to to connect 
 to your google drive.
 
 	
@@ -160,9 +168,6 @@ where information is going to be stored. Default value is "default".
 TCP port number where the ftp adapter is going to listen for ftp clients. Default FTP port is 21, but In Linux 
 this is a reserved port (below 1024 are privileged ports), so we better work with a port like 1821. Default is 1821.
 There is another start2.cmd as example (windows) that start an ftp adapter at port 22. 
-
-
-
 
 
 Known Problems
