@@ -39,9 +39,10 @@ Screenshots
 
 ![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-win32-start.jpg)
 ![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-beyond-compare.jpg)
-![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-filezilla.jpg)
-![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-shell-ftp.jpg)
+![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-filezilla.png)
+![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-shell-ftp.png)
 ![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-google-dialog.jpg)
+![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-chrome.png)
 
 
 Notes
@@ -81,7 +82,6 @@ The project is packaged with maven. If you want to build it just download projec
 Run it!
 ======
 
-
 - If you have already JAVA installed download jar-with-dependencies.jar and double click on it or run from command line:
 
     $ java -jar google-drive-ftp-adapter-jar-with-dependencies.jar
@@ -94,7 +94,7 @@ Run it!
 - Once the application is started, a Google authorization dialog in your Internet browser will ask you to allow
 google drive ftp application to acces your files. Click "OK". 
 
-- Now you can use ftp://user:user@localhost/ from your application to to connect 
+- Now you can use ftp://user:user@localhost:1821/ from your application to to connect 
 to your google drive.
 
 	
