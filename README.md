@@ -104,8 +104,9 @@ Test it!
 
 - Open ftp://user:user@localhost:1821/ in your browser to connect to your google drive.
 
-- Or open terminal and type "ftp localhost 1821": Type "user" as the username and "user" as password. Once in FTP, type "dir" to see
-your drive files. Example:
+- Or open terminal and type "ftp localhost 1821": Type "user" as the username and "user" as password. Once in FTP, type "dir" to see your drive files.
+
+Ftp example:
 
     $ ftp localhost 1821
     Connected to localhost.
@@ -134,11 +135,11 @@ The application works fine without configuration.  However, a default configurat
 in case you want to customize them.
 
 If you want, you can also customize the path of the configuration.properties when launching the app:
-    
+
     $ java -jar google-drive-ftp-adapter.jar [propertiesFilename] 
     
 Here are the application parameters you can customize:
- 
+
     # log4j.fileId if you have more than 1 instance of the app running
     log4j.fileId=
     
