@@ -3,11 +3,12 @@
 News
 ====
 
-**New version** v1.2.0 - 11 October 2015
+**New version** v1.2.1 - 12 October 2015
 - https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-jar-with-dependencies.jar
-- https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-1.2.0-bundle.zip
+- https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-bundle.zip
 
-**New features**: ftp configuration  
+**New features**:
+- ftp configuration
 
 
 About
@@ -41,7 +42,7 @@ Screenshots
 ![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-beyond-compare.jpg)
 ![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-filezilla.png)
 ![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-shell-ftp.png)
-![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-google-dialog.jpg)
+![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-google-dialog.png)
 ![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-chrome.png)
 
 
@@ -220,6 +221,10 @@ ChangeLog
 
 (f) fixed, (i) improved, (n) new feature
 
+- v1.2.1 (12/12/2015)
+ - (n) Hack to force cache to rebuild folder info (in ftp type "dir" 3 times) 
+ - (i) Updated to latest version 1.20.0 of google-api-services-drive.jar
+ - (f) Removed not used permissions for the google authorization. Now only DRIVE & DRIVE_METADATA used
 - v1.2.0 (10/10/2015)
  - (n) support for assembly application into jar-with-dependencies.jar
  - (n) support for configuration.properties

@@ -15,7 +15,7 @@ import java.util.concurrent.Future;
 
 import org.andresoviedo.apps.gdrive_ftp_adapter.model.Cache;
 import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive;
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive.FTPGFile;
+import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive.GFile;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -24,18 +24,16 @@ import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.ParentReference;
 
 /**
- * Servicio de actualización de la caché
+ * Cache synchronization service (by polling).
  * 
  * @author Andres Oviedo
  * 
  */
-public class FtpGdriveSynchService {
+public final class FtpGdriveSynchService {
 
-	private static Log logger = LogFactory.getLog(FtpGdriveSynchService.class);
+	private static final Log LOG = LogFactory.getLog(FtpGdriveSynchService.class);
 
-	private static FtpGdriveSynchService instance;
-
-	private GoogleDrive gmodel;
+	private GoogleDrive googleDrive;
 
 	private Cache cache;
 
@@ -45,20 +43,18 @@ public class FtpGdriveSynchService {
 
 	private TimerTask synchPeriodicTask;
 
-	public FtpGdriveSynchService(Properties configuration, Cache cache) {
-		instance = this;
-		gmodel = GoogleDrive.getInstance(configuration);
+	public FtpGdriveSynchService(Properties configuration, Cache cache,  GoogleDrive googleDrive) {
+		this.googleDrive = googleDrive;
 		this.cache = cache;
-		executor = Executors.newFixedThreadPool(4);
-		timer = new Timer(true);
-		instance = this;
+		this.executor = Executors.newFixedThreadPool(4);
+		this.timer = new Timer(true);
 		init();
 	}
 
 	private void init() {
-		FTPGFile rootFile = cache.getFile("root");
+		GFile rootFile = cache.getFile("root");
 		if (rootFile == null) {
-			rootFile = new FTPGFile("");
+			rootFile = new GFile("");
 			rootFile.setId("root");
 			rootFile.setDirectory(true);
 			rootFile.setParents(new HashSet<String>());
@@ -66,12 +62,6 @@ public class FtpGdriveSynchService {
 		}
 	}
 
-	public static FtpGdriveSynchService getInstance() {
-		if (instance == null) {
-			throw new IllegalStateException("FtpGdriveSynchService not yet initialized");
-		}
-		return instance;
-	}
 
 	/**
 	 * Arranca la sincronización de la base de datos local con la de google
@@ -86,9 +76,13 @@ public class FtpGdriveSynchService {
 	}
 
 	public void updateNow(File googleFileUpdated) {
-		FTPGFile updatedFile = GoogleDrive.FTPGFile.create(googleFileUpdated);
+		GFile updatedFile = GoogleDrive.GFile.create(googleFileUpdated);
 		updatedFile.setRevision(cache.getRevision());
 		cache.addOrUpdateFile(updatedFile);
+	}
+	
+	public void updateFolderNow(String fileId) {
+		synchFolder(fileId);
 	}
 
 	public void stop() {
@@ -106,45 +100,45 @@ public class FtpGdriveSynchService {
 
 					synchPendingFolders();
 				} catch (Exception e) {
-					logger.error(e.getMessage(), e);
+					LOG.error(e.getMessage(), e);
 				}
 			}
 
 			private void checkForRemoteChanges() {
 
 				long largestChangeId = cache.getRevision();
-				logger.info("Largest changeId found in local database " + largestChangeId);
+				LOG.debug("Largest changeId found in local database " + largestChangeId);
 				if (largestChangeId > 0) {
 					List<Change> googleChanges;
-					while (!(googleChanges = gmodel.getAllChanges(largestChangeId + 1)).isEmpty()) {
+					while (!(googleChanges = googleDrive.getAllChanges(largestChangeId + 1)).isEmpty()) {
 
 						// TODO: revisar la sincronización de esto cuando theads
 						// > 1
-						logger.info("Detected " + googleChanges.size() + " changes");
+						LOG.info("Detected " + googleChanges.size() + " changes");
 
 						for (Change change : googleChanges) {
 							processChange(change.getFileId(), change);
 						}
 						largestChangeId = cache.getRevision();
-						logger.info("Largest changeId found in local database " + largestChangeId);
+						LOG.info("Largest changeId found in local database " + largestChangeId);
 					}
 
-					logger.info("No more changes to process.");
+					LOG.debug("No more changes to process.");
 				}
 			}
 
 			private void processChange(String fileId, Change change) {
-				final FTPGFile localFile = cache.getFile(fileId);
+				final GFile localFile = cache.getFile(fileId);
 				if (change.getDeleted() || change.getFile().getLabels().getTrashed()) {
 					if (localFile != null) {
-						logger.info("File deleted remotely " + localFile.getName() + "...");
+						LOG.info("File deleted remotely " + localFile.getName() + "...");
 						int deletedFiles = cache.deleteFile(localFile.getId());
-						logger.info("Total affected files " + deletedFiles);
+						LOG.info("Total affected files " + deletedFiles);
 
 					}
 					// TODO: review this. must update some file to keep
 					// track of last change (better a file on disk)?
-					FTPGFile rootFile = cache.getFile("root");
+					GFile rootFile = cache.getFile("root");
 					rootFile.setRevision(change.getId());
 					cache.updateFile(rootFile);
 
@@ -163,36 +157,34 @@ public class FtpGdriveSynchService {
 
 				if (localFile == null) {
 					// TODO: arreglar el path
-					FTPGFile newLocalFile = GoogleDrive.FTPGFile.create(changeFile);
+					GFile newLocalFile = GoogleDrive.GFile.create(changeFile);
 					if (!newLocalFile.isDirectory()) {
 						newLocalFile.setRevision(change.getId());
 					} else {
-						// si es un directorio no marcamos para que
-						// se
-						// sincronize luego
+						// si es un directorio no marcamos para que se sincronize luego
 					}
 
-					logger.info("New file " + newLocalFile);
+					LOG.info("New file " + newLocalFile);
 					cache.addOrUpdateFile(newLocalFile);
 
 				} else if (change.getId() > localFile.getRevision()) {
 					// File updated
 					// renamed file?
-					logger.info("Updating file " + localFile);
-					FTPGFile patchedLocalFile = GoogleDrive.FTPGFile.create(change.getFile());
+					GFile patchedLocalFile = GoogleDrive.GFile.create(change.getFile());
+					LOG.info("Updating file " + localFile.getDiffs(patchedLocalFile));
 					patchedLocalFile.setRevision(change.getId());
 					cache.addOrUpdateFile(patchedLocalFile);
 				} else {
-					logger.error("Processing ununderstood change :(");
-					FTPGFile patchedLocalFile = GoogleDrive.FTPGFile.create(change.getFile());
-					logger.error("Updating file " + localFile + " to " + patchedLocalFile);
+					LOG.error("Processing ununderstood change :(");
+					GFile patchedLocalFile = GoogleDrive.GFile.create(change.getFile());
+					LOG.error("Updating file " + localFile + " to " + patchedLocalFile);
 					patchedLocalFile.setRevision(change.getId());
 					cache.addOrUpdateFile(patchedLocalFile);
 				}
 			}
 
 			private void synchPendingFolders() {
-				logger.info("Checking for pending folders to synchronize...");
+				LOG.debug("Checking for pending folders to synchronize...");
 				try {
 					// always sync pending directories first
 					List<String> unsynchChilds = null;
@@ -201,11 +193,11 @@ public class FtpGdriveSynchService {
 
 						int total = cache.getAllFolderByRevision(-1).size();
 						int totalPending = unsynchChilds.size();
-						logger.info("Synchronizing folders (" + (total - totalPending) + " out of " + total + ")...");
+						LOG.info("Synchronizing folders (" + (total - totalPending) + " out of " + total + ")...");
 
 						int limit = 10;
 						for (final String unsynchChild : unsynchChilds) {
-							logger.debug("Creating synch task for '" + unsynchChild + "'...");
+							LOG.debug("Creating synch task for '" + unsynchChild + "'...");
 							tasks.add(new Callable<Void>() {
 								String folderId = unsynchChild;
 
@@ -220,12 +212,12 @@ public class FtpGdriveSynchService {
 								break;
 							}
 						}
-						logger.debug("Executing " + tasks.size() + " tasks...");
+						LOG.debug("Executing " + tasks.size() + " tasks...");
 						List<Future<Void>> futures = executor.invokeAll(tasks);
-						logger.info("Waiting for all executions to finish...");
+						LOG.debug("Waiting for all executions to finish...");
 						while (!futures.isEmpty()) {
 							Thread.sleep(200);
-							logger.trace(".");
+							LOG.trace(".");
 							for (Iterator<Future<Void>> it = futures.iterator(); it.hasNext();) {
 								Future<Void> future = it.next();
 								if (future.isDone()) {
@@ -235,13 +227,13 @@ public class FtpGdriveSynchService {
 								}
 							}
 						}
-						logger.info("All executions finished to run.  " + "Lets check again for any pending folders...");
+						LOG.debug("All executions finished to run.  " + "Lets check again for any pending folders...");
 						synchPendingFolders();
 					}
 				} catch (InterruptedException e) {
-					logger.error(e.getMessage(), e);
+					LOG.error(e.getMessage(), e);
 				}
-				logger.info("Synchronization finalized OK");
+				LOG.debug("Synchronization finalized OK");
 			}
 		};
 
@@ -254,14 +246,14 @@ public class FtpGdriveSynchService {
 	 *            the file to synchronize
 	 */
 	public void synch(String fileId) {
-		logger.info("Synching " + fileId + "...");
+		LOG.info("Synching " + fileId + "...");
 		long largestChangeId = cache.getRevision();
-		File file = gmodel.getFile(fileId);
+		File file = googleDrive.getFile(fileId);
 
 		if (file == null || file.getLabels().getTrashed()) {
 			cache.deleteFile(fileId);
 		} else {
-			FTPGFile updatedFile = GoogleDrive.FTPGFile.create(file);
+			GFile updatedFile = GoogleDrive.GFile.create(file);
 			updatedFile.setRevision(largestChangeId);
 			cache.addOrUpdateFile(updatedFile);
 		}
@@ -278,63 +270,62 @@ public class FtpGdriveSynchService {
 		try {
 			// cogemos la revisión primero de todo por si luego hay cambios, que
 			// esos machaquen estos
-			long largestChangeId = gmodel.getLargestChangeId(-1);
+			long largestChangeId = googleDrive.getLargestChangeId(-1);
 
-			FTPGFile remoteFile = null;
+			GFile remoteFile = null;
 
 			if (folderId.equals("root")) {
 				remoteFile = cache.getFile("root");
 			} else {
-				remoteFile = GoogleDrive.FTPGFile.create(gmodel.getFile(folderId));
+				remoteFile = GoogleDrive.GFile.create(googleDrive.getFile(folderId));
 				if (remoteFile == null || remoteFile.getLabels().contains("trashed")) {
 					// TODO: if exists maybe?
 					final int deleted = cache.deleteFile(folderId);
 					if (deleted > 0) {
-						logger.info("Deleted " + deleted + " local files");
+						LOG.info("Deleted " + deleted + " local files");
 					} else {
-						logger.info("Nothing to local delete");
+						LOG.info("Nothing to local delete");
 					}
 					return;
 				}
 
 				if (!remoteFile.isDirectory()) {
-					throw new IllegalArgumentException("Can't sync folder '" + folderId
-							+ "' because it is a regular file");
+					throw new IllegalArgumentException("Can't sync folder '" + folderId + "' because it is a regular file");
 				}
 			}
 
 			{
 				// Local folder only to this context and to check revision
-				FTPGFile localFolder = cache.getFile(folderId);
+				GFile localFolder = cache.getFile(folderId);
 				if (localFolder == null) {
-					logger.info("Adding folder '" + remoteFile.getName() + "'");
+					LOG.info("Adding folder '" + remoteFile.getName() + "'");
 				} else if (localFolder.getRevision() < largestChangeId) {
-					logger.info("Updating folder '" + remoteFile.getName() + "'");
+					LOG.info("Updating folder '" + remoteFile.getName() + "'");
 					remoteFile.setRevision(largestChangeId);
 				} else {
-					logger.warn("Folder '" + folderId + "' already updated");
+					LOG.warn("Folder '" + folderId + "' already updated");
 					return;
 				}
 			}
 
-			logger.debug("Recreating childs for folder '" + folderId + "'");
+			LOG.debug("Recreating childs for folder '" + folderId + "'");
 
-			List<FTPGFile> newLocalChilds = GoogleDrive.FTPGFile.create(gmodel.list(folderId), 0);
+			List<GFile> newLocalChilds = GoogleDrive.GFile.create(googleDrive.list(folderId), 0);
 			if (newLocalChilds == null) {
-				logger.warn("File deleted remotely while requesting list?");
+				LOG.warn("File deleted remotely while requesting list?");
 				cache.deleteFile(folderId);
 				return;
 			} else {
-				for (FTPGFile file : newLocalChilds) {
+				for (GFile file : newLocalChilds) {
 					if (!file.isDirectory())
 						file.setRevision(largestChangeId);
 				}
 			}
 
-			logger.debug("Adding childs for '" + remoteFile.getName() + "':" + newLocalChilds);
+			LOG.debug("Adding childs for '" + remoteFile.getName() + "':" + newLocalChilds);
 			cache.updateChilds(remoteFile, newLocalChilds);
 		} catch (Exception e) {
-			logger.fatal(e.getMessage(), e);
+			LOG.fatal(e.getMessage(), e);
 		}
 	}
 

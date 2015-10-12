@@ -2,14 +2,14 @@ package org.andresoviedo.apps.gdrive_ftp_adapter.model;
 
 import java.util.List;
 
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive.FTPGFile;
+import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive.GFile;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
 
 public interface Cache {
 
-	public abstract FTPGFile getFile(String id);
+	public abstract GFile getFile(String id);
 
-	public abstract List<FTPGFile> getFiles(String folderId);
+	public abstract List<GFile> getFiles(String folderId);
 
 	/**
 	 * TODO: is it correct to throw that data exception?
@@ -20,11 +20,11 @@ public interface Cache {
 	 * @throws IncorrectResultSizeDataAccessException
 	 *             if there is more than 1 file with the same name in the specified folder
 	 */
-	public abstract FTPGFile getFileByName(String parentId, String filename) throws IncorrectResultSizeDataAccessException;
+	public abstract GFile getFileByName(String parentId, String filename) throws IncorrectResultSizeDataAccessException;
 
-	public abstract void addOrUpdateFile(FTPGFile rootFile);
+	public abstract void addOrUpdateFile(GFile rootFile);
 
-	public abstract boolean updateFile(FTPGFile file);
+	public abstract boolean updateFile(GFile file);
 
 	public abstract int deleteFile(String id);
 
@@ -32,6 +32,6 @@ public interface Cache {
 
 	public abstract List<String> getAllFolderByRevision(long i);
 
-	public abstract void updateChilds(FTPGFile file, List<FTPGFile> newChilds);
+	public abstract void updateChilds(GFile file, List<GFile> newChilds);
 
 }

@@ -5,7 +5,7 @@
 
 	<groupId>org.andresoviedo</groupId>
 	<artifactId>google-drive-ftp-adapter</artifactId>
-	<version>1.2.0</version>
+	<version>1.2.1</version>
 
 	<name>Google Drive FTP Adapter</name>
 
@@ -80,27 +80,19 @@
 		<dependency>
 			<groupId>com.google.apis</groupId>
 			<artifactId>google-api-services-drive</artifactId>
-			<version>v2-rev102-1.17.0-rc</version>
+			<version>v2-rev188-1.20.0</version>
 		</dependency>
+
 		<dependency>
-			<groupId>com.google.http-client</groupId>
-			<artifactId>google-http-client-jackson2</artifactId>
-			<version>${project.http.version}</version>
+			<groupId>com.google.oauth-client</groupId>
+			<artifactId>google-oauth-client-java6</artifactId>
+			<version>1.20.0</version>
 		</dependency>
+
 		<dependency>
 			<groupId>com.google.oauth-client</groupId>
 			<artifactId>google-oauth-client-jetty</artifactId>
-			<version>${project.oauth.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.google.http-client</groupId>
-			<artifactId>google-http-client</artifactId>
-			<version>${project.http.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.google.api-client</groupId>
-			<artifactId>google-api-client</artifactId>
-			<version>${project.http.version}</version>
+			<version>1.20.0</version>
 		</dependency>
 
 		<!-- sql cache -->

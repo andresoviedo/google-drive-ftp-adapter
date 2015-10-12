@@ -17,7 +17,7 @@ import java.util.regex.Pattern;
 
 import org.andresoviedo.apps.gdrive_ftp_adapter.controller.Controller;
 import org.andresoviedo.apps.gdrive_ftp_adapter.model.Cache;
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive.FTPGFile;
+import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive.GFile;
 import org.andresoviedo.util.os.OSUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -51,6 +51,7 @@ import org.apache.ftpserver.usermanager.UsernamePasswordAuthentication;
 import org.apache.ftpserver.usermanager.impl.AbstractUserManager;
 import org.apache.ftpserver.usermanager.impl.BaseUser;
 import org.apache.ftpserver.usermanager.impl.ConcurrentLoginPermission;
+import org.apache.ftpserver.usermanager.impl.WritePermission;
 import org.apache.ftpserver.util.DateUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -124,6 +125,10 @@ public class GFtpServerFactory extends FtpServerFactory {
 			defaultUser.setMaxIdleTime(300);
 			defaultUser.setName(configuration.getProperty("ftp.user", "user"));
 			defaultUser.setPassword(configuration.getProperty("ftp.pass", "user"));
+			List<Authority> authorities = new ArrayList<Authority>();
+            authorities.add(new WritePermission());
+            authorities.add(new ConcurrentLoginPermission(10, 5));
+            defaultUser.setAuthorities(authorities);
 			LOG.info("FTP User Manager configured for user '"+defaultUser.getName()+"'");
 
 			anonUser = new BaseUser(defaultUser);
@@ -191,14 +196,14 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 			private final FtpFileWrapper parent;
 
-			private final FTPGFile gfile;
+			private final GFile gfile;
 
 			/**
 			 * This is not final because this name can change if there is other file in the same folder with the same name
 			 */
 			private String virtualName;
 
-			public FtpFileWrapper(FtpFileWrapper parent, FTPGFile ftpGFile, String virtualName) {
+			public FtpFileWrapper(FtpFileWrapper parent, GFile ftpGFile, String virtualName) {
 				this.parent = parent;
 				this.gfile = ftpGFile;
 				this.virtualName = virtualName;
@@ -277,6 +282,9 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 			@Override
 			public boolean delete() {
+				if (!doesExist()){
+					throw new RuntimeException("Oops! Tried to delete file '"+getName()+"' although it doesn't exists");
+				}
 				return controller.trashFile(this.unwrap());
 			}
 
@@ -295,7 +303,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 				return gfile.isDirectory();
 			}
 
-			public FTPGFile unwrap() {
+			public GFile unwrap() {
 				return gfile;
 			}
 
@@ -598,7 +606,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 			LOG.debug("Querying for file '" + absolutePath + "' inside folder '" + folder + "'...");
 
 			try {
-				FTPGFile fileByName = model.getFileByName(folder.getId(), fileName);
+				GFile fileByName = model.getFileByName(folder.getId(), fileName);
 				if (fileByName != null) {
 					LOG.debug("File '" + fileName + "' found");
 					return createFtpFileWrapper(folder, fileByName, fileName, true);
@@ -621,7 +629,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 					LOG.info("Searching encoded file '" + folder.getAbsolutePath() + (folder.isRoot() ? "" : FILE_SEPARATOR)
 							+ expectedFileName + "' ('" + fileId + "')...");
-					FTPGFile gfile = model.getFile(fileId);
+					GFile gfile = model.getFile(fileId);
 					if (gfile != null && expectedFileName.equals(gfile.getName())) {
 						// The file id exists, but we have to check also for filename so we are sure the referred file
 						// is the same
@@ -633,17 +641,17 @@ public class GFtpServerFactory extends FtpServerFactory {
 							+ "' ('" + fileId + "') not found");
 				}
 
-				return createFtpFileWrapper(folder, new FTPGFile(Collections.singleton(folder.getId()), fileName), fileName, false);
+				return createFtpFileWrapper(folder, new GFile(Collections.singleton(folder.getId()), fileName), fileName, false);
 			} catch (IncorrectResultSizeDataAccessException e) {
 				// INFO: this happens when the user wants to get a file which actually exists, but because it's
 				// duplicated, the client should see the generated virtual name (filename encoded name with id).
 				// INFO: in this case, we return a new file (although it exists), because virtually speaking the file
 				// doesn't exists with that name
-				return createFtpFileWrapper(folder, new FTPGFile(Collections.singleton(folder.getId()), fileName), fileName, false);
+				return createFtpFileWrapper(folder, new GFile(Collections.singleton(folder.getId()), fileName), fileName, false);
 			}
 		}
 
-		private FtpFileWrapper createFtpFileWrapper(FtpFileWrapper folder, FTPGFile gFile, String virtualFilename, boolean exists) {
+		private FtpFileWrapper createFtpFileWrapper(FtpFileWrapper folder, GFile gFile, String virtualFilename, boolean exists) {
 
 			// now lets remove illegal chars
 			final String filenameWithoutIllegalChars = illegalChars.matcher(virtualFilename).replaceAll("");
@@ -664,7 +672,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 			LOG.info("Listing " + folder.getAbsolutePath());
 
-			List<FTPGFile> query = model.getFiles(folder.getId());
+			List<GFile> query = controller.getFiles(folder.getId());
 			if (query.isEmpty()) {
 				return Collections.<FtpFile> emptyList();
 			}
@@ -675,7 +683,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 			List<FtpFileWrapper> ret = new ArrayList<FtpFileWrapper>(query.size());
 
 			// encode filenames if necessary (duplicated files, illegal chars, ...)
-			for (FTPGFile ftpFile : query) {
+			for (GFile ftpFile : query) {
 
 				FtpFileWrapper fileWrapper = createFtpFileWrapper(folder, ftpFile, ftpFile.getName(), true);
 				ret.add(fileWrapper);

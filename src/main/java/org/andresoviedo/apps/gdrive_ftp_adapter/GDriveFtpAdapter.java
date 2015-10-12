@@ -6,6 +6,7 @@ import java.util.Properties;
 
 import org.andresoviedo.apps.gdrive_ftp_adapter.controller.Controller;
 import org.andresoviedo.apps.gdrive_ftp_adapter.model.Cache;
+import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive;
 import org.andresoviedo.apps.gdrive_ftp_adapter.model.SQLiteCache;
 import org.andresoviedo.apps.gdrive_ftp_adapter.service.FtpGdriveSynchService;
 import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.GFtpServerFactory;
@@ -19,6 +20,7 @@ public final class GDriveFtpAdapter {
 
 	private final org.apache.ftpserver.FtpServer server;
 	private final Cache cache;
+	private final GoogleDrive googleDrive;
 	private final FtpGdriveSynchService cacheUpdater;
 	private final Controller controller;
 
@@ -31,9 +33,11 @@ public final class GDriveFtpAdapter {
 
 		cache = new SQLiteCache(configuration);
 
-		cacheUpdater = new FtpGdriveSynchService(configuration, cache);
+		googleDrive = new GoogleDrive(configuration);
+		
+		cacheUpdater = new FtpGdriveSynchService(configuration, cache, googleDrive);
 
-		controller = new Controller(cache);
+		controller = new Controller(cache, googleDrive, cacheUpdater);
 
 		// FTP Setup
 		FtpServerFactory serverFactory = new GFtpServerFactory(controller, cache, configuration);

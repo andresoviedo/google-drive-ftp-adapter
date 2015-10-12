@@ -12,7 +12,7 @@ import java.util.Properties;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive.FTPGFile;
+import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive.GFile;
 import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -44,7 +44,7 @@ public final class SQLiteCache implements Cache {
 	@SuppressWarnings("unused")
 	private final Properties configuration;
 
-	private final RowMapper<FTPGFile> rowMapper;
+	private final RowMapper<GFile> rowMapper;
 
 	private final JdbcTemplate jdbcTemplate;
 
@@ -78,10 +78,10 @@ public final class SQLiteCache implements Cache {
 
 		jdbcTemplate = new JdbcTemplate(dataSource);
 
-		rowMapper = new RowMapper<FTPGFile>() {
+		rowMapper = new RowMapper<GFile>() {
 			@Override
-			public FTPGFile mapRow(ResultSet rs, int rowNum) throws SQLException {
-				FTPGFile ret = new FTPGFile();
+			public GFile mapRow(ResultSet rs, int rowNum) throws SQLException {
+				GFile ret = new GFile();
 				ret.setId(rs.getString("id"));
 				// TODO: hace falta informar los parents aqui?
 				// ret.setParentId(rs.getString("parentId"));
@@ -122,11 +122,11 @@ public final class SQLiteCache implements Cache {
 	 * @see org.andresoviedo.apps.gdrive_ftp_adapter.service.Cache#getFile(java.lang .String)
 	 */
 	@Override
-	public FTPGFile getFile(String id) {
+	public GFile getFile(String id) {
 		r.lock();
 		try {
 			LOG.trace("getFile(" + id + ")");
-			FTPGFile file = (FTPGFile) jdbcTemplate.queryForObject("select * from " + TABLE_FILES + " where id=?", new Object[] { id },
+			GFile file = (GFile) jdbcTemplate.queryForObject("select * from " + TABLE_FILES + " where id=?", new Object[] { id },
 					rowMapper);
 			return file;
 		} catch (EmptyResultDataAccessException ex) {
@@ -136,7 +136,7 @@ public final class SQLiteCache implements Cache {
 		}
 	}
 
-	public void addOrUpdateFile(FTPGFile file) {
+	public void addOrUpdateFile(GFile file) {
 		List<String> queries = new ArrayList<String>();
 		List<Object[]> args = new ArrayList<Object[]>();
 		// queries.add("insert into "
@@ -154,7 +154,7 @@ public final class SQLiteCache implements Cache {
 		executeInTransaction(queries, args);
 	}
 
-	void addFile(FTPGFile file, List<String> queries, List<Object[]> args) {
+	void addFile(GFile file, List<String> queries, List<Object[]> args) {
 		queries.add("insert into " + TABLE_FILES + " (id, revision,filename,isDirectory,length,lastModified,md5checksum)"
 				+ " values(?,?,?,?,?,?,?)");
 		args.add(new Object[] { file.getId(), file.getRevision(), file.getName(), file.isDirectory(), file.getLength(),
@@ -162,7 +162,7 @@ public final class SQLiteCache implements Cache {
 	}
 
 	// TODO: merge de este con el addFile
-	public void updateChilds(FTPGFile file, List<FTPGFile> childs) {
+	public void updateChilds(GFile file, List<GFile> childs) {
 		List<String> queries = new ArrayList<String>();
 		List<Object[]> args = new ArrayList<Object[]>();
 		queries.add("delete from " + TABLE_CHILDS + " where parentId=?");
@@ -172,7 +172,7 @@ public final class SQLiteCache implements Cache {
 		args.add(new Object[] { file.getRevision(), file.getName(), file.isDirectory(), file.getLength(), file.getLastModified(),
 				file.getMd5Checksum(), file.getId() });
 
-		for (FTPGFile child : childs) {
+		for (GFile child : childs) {
 			queries.add("insert or replace into " + TABLE_FILES + " (id,revision,filename,isDirectory,length,lastModified,md5checksum)"
 					+ " values(?,?,?,?,?,?,?)");
 			args.add(new Object[] { child.getId(), child.getRevision(), child.getName(), child.isDirectory(), child.getLength(),
@@ -187,7 +187,7 @@ public final class SQLiteCache implements Cache {
 		executeInTransaction(queries, args);
 	}
 
-	private void updateParents(FTPGFile file, List<String> queries, List<Object[]> args) {
+	private void updateParents(GFile file, List<String> queries, List<Object[]> args) {
 		queries.add("delete from " + TABLE_CHILDS + " where childId=?");
 		args.add(new Object[] { file.getId() });
 		for (String parent : file.getParents()) {
@@ -260,7 +260,7 @@ public final class SQLiteCache implements Cache {
 	}
 
 	@Override
-	public boolean updateFile(FTPGFile file) {
+	public boolean updateFile(GFile file) {
 		return jdbcTemplate.update(
 				"update " + TABLE_FILES
 						+ " set revision=?,filename=?,isDirectory=?,length=?,lastModified=?,md5checksum=? where id=? and revision < ?",
@@ -286,10 +286,10 @@ public final class SQLiteCache implements Cache {
 	// executeInTransaction(queries, args);
 	// }
 
-	void addFiles(List<FTPGFile> files) {
+	void addFiles(List<GFile> files) {
 		List<String> queries = new ArrayList<String>();
 		List<Object[]> args = new ArrayList<Object[]>();
-		for (FTPGFile file : files) {
+		for (GFile file : files) {
 			addFile(file, queries, args);
 			updateParents(file, queries, args);
 		}
@@ -306,11 +306,11 @@ public final class SQLiteCache implements Cache {
 	 * @see org.andresoviedo.apps.gdrive_ftp_adapter.service.Cache#getFiles(java.lang .String)
 	 */
 	@Override
-	public List<FTPGFile> getFiles(String parentId) {
+	public List<GFile> getFiles(String parentId) {
 		System.out.println();
 		r.lock();
 		try {
-			final List<FTPGFile> query = jdbcTemplate.query("select " + TABLE_FILES + ".* from " + TABLE_FILES + "," + TABLE_CHILDS
+			final List<GFile> query = jdbcTemplate.query("select " + TABLE_FILES + ".* from " + TABLE_FILES + "," + TABLE_CHILDS
 					+ " where " + TABLE_CHILDS + ".childId=" + TABLE_FILES + ".id and " + TABLE_CHILDS + ".parentId=?",
 					new Object[] { parentId }, rowMapper);
 			return query;
@@ -339,10 +339,10 @@ public final class SQLiteCache implements Cache {
 	 * @see org.andresoviedo.apps.gdrive_ftp_adapter.service.Cache#getFileByName(java .lang.String, java.lang.String)
 	 */
 	@Override
-	public FTPGFile getFileByName(String parentId, String filename) throws IncorrectResultSizeDataAccessException {
+	public GFile getFileByName(String parentId, String filename) throws IncorrectResultSizeDataAccessException {
 		r.lock();
 		try {
-			final FTPGFile query = (FTPGFile) jdbcTemplate.queryForObject("select " + TABLE_FILES + ".* from " + TABLE_CHILDS + ","
+			final GFile query = (GFile) jdbcTemplate.queryForObject("select " + TABLE_FILES + ".* from " + TABLE_CHILDS + ","
 					+ TABLE_FILES + " where " + TABLE_CHILDS + ".childId=" + TABLE_FILES + ".id and " + TABLE_CHILDS + ".parentId=? and "
 					+ TABLE_FILES + ".filename=?", new Object[] { parentId, filename }, rowMapper);
 			return query;

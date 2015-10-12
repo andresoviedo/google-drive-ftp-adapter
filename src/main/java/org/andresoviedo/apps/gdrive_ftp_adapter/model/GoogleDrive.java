@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive.FTPGFile.MIME_TYPE;
+import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive.GFile.MIME_TYPE;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -54,10 +54,10 @@ import com.google.api.services.drive.model.ParentReference;
  * @author andresoviedo
  * 
  */
-public class GoogleDrive {
+public final class GoogleDrive {
 
 	@SuppressWarnings("unused")
-	private static final Log LOG = LogFactory.getLog(FTPGFile.class);
+	private static final Log LOG = LogFactory.getLog(GFile.class);
 
 	/**
 	 * Represents a directory or a simple file. This object encapsulates the Java File object.
@@ -65,7 +65,7 @@ public class GoogleDrive {
 	 * @author Jens Heidrich
 	 * @version $Id: JFSGDriveFile.java,v 1.15 2009/10/02 08:21:19 heidrich Exp $
 	 */
-	public static class FTPGFile implements Serializable, Cloneable {
+	public static class GFile implements Serializable, Cloneable {
 
 		public static enum MIME_TYPE {
 
@@ -151,20 +151,26 @@ public class GoogleDrive {
 		private transient java.io.File transferFile = null;
 
 		private transient URL downloadUrl;
+		/**
+		 * Last time this file was viewed by the user
+		 * 
+		 * @see File#getLastViewedByMeDate()
+		 */
+		private long lastViewedByMeDate;
 
 		/**
 		 * Because a file can have multiple parents, this instance could be duplicated. Current parent so, is the link to the selected
 		 * container.
 		 */
-		private transient FTPGFile currentParent;
+		private transient GFile currentParent;
 
 		private boolean exists;
 
-		public FTPGFile() {
+		public GFile() {
 			this("");
 		}
 
-		public FTPGFile(String name) {
+		public GFile(String name) {
 			this.name = name;
 		}
 
@@ -184,7 +190,7 @@ public class GoogleDrive {
 		 * @param name
 		 *            The relative path of the JFS file starting from the root JFS file.
 		 */
-		public FTPGFile(Set<String> parents, String name) {
+		public GFile(Set<String> parents, String name) {
 			this(name);
 			this.parents = parents;
 		}
@@ -281,9 +287,17 @@ public class GoogleDrive {
 			this.transferFile = transferFile;
 		}
 
+		public long getLastViewedByMeDate() {
+			return lastViewedByMeDate;
+		}
+
+		public void setLastViewedByMeDate(long lastViewedByMeDate) {
+			this.lastViewedByMeDate = lastViewedByMeDate;
+		}
+
 		@Override
 		public Object clone() {
-			FTPGFile ret = new FTPGFile(getName());
+			GFile ret = new GFile(getName());
 			ret.setId(getId());
 			ret.setName(getName());
 			ret.setDirectory(isDirectory());
@@ -295,14 +309,15 @@ public class GoogleDrive {
 
 			ret.setMimeType(mimeType);
 			ret.setExists(isExists());
+			ret.setLastViewedByMeDate(getLastViewedByMeDate());
 			return ret;
 		}
 
-		public FTPGFile getCurrentParent() {
+		public GFile getCurrentParent() {
 			return currentParent;
 		}
 
-		public void setCurrentParent(FTPGFile currentParent) {
+		public void setCurrentParent(GFile currentParent) {
 			this.currentParent = currentParent;
 		}
 
@@ -324,10 +339,10 @@ public class GoogleDrive {
 
 		// 0000000000000000000000000000000000000000000000000
 
-		public static FTPGFile create(File googleFile) {
+		public static GFile create(File googleFile) {
 			if (googleFile == null)
 				return null;
-			FTPGFile newFile = new FTPGFile(getFilename(googleFile));
+			GFile newFile = new GFile(getFilename(googleFile));
 			newFile.setId(googleFile.getId());
 			newFile.setLastModified(getLastModified(googleFile));
 			newFile.setLength(getFileSize(googleFile));
@@ -346,13 +361,16 @@ public class GoogleDrive {
 			} else {
 				newFile.setLabels(Collections.<String> emptySet());
 			}
+			if (googleFile.getLastViewedByMeDate() != null) {
+				newFile.setLastViewedByMeDate(googleFile.getLastViewedByMeDate().getValue());
+			}
 			return newFile;
 		}
 
-		public static List<FTPGFile> create(List<File> googleFiles, long revision) {
-			List<FTPGFile> ret = new ArrayList<>(googleFiles.size());
+		public static List<GFile> create(List<File> googleFiles, long revision) {
+			List<GFile> ret = new ArrayList<>(googleFiles.size());
 			for (File child : googleFiles) {
-				FTPGFile localFile = create(child);
+				GFile localFile = create(child);
 				localFile.setRevision(revision);
 				ret.add(localFile);
 			}
@@ -384,13 +402,6 @@ public class GoogleDrive {
 
 		}
 
-		// public static FTPGFile create(File remoteFile, long
-		// largestChangedId) {
-		// FTPGFile file = create(remoteFile);
-		// file.setRevision(largestChangedId);
-		// return file;
-		// }
-
 		private static long getFileSize(File googleFile) {
 			return googleFile.getFileSize() == null ? 0 : googleFile.getFileSize();
 		}
@@ -402,9 +413,23 @@ public class GoogleDrive {
 		public String getOwnerName() {
 			return "uknown";
 		}
+
+		public String getDiffs(GFile patchedLocalFile) {
+			StringBuilder ret = new StringBuilder("Diffs: ");
+			if (!patchedLocalFile.getName().equals(getName())) {
+				ret.append("name '").append(patchedLocalFile.getName()).append("'");
+			}
+			if (patchedLocalFile.getLastModified() != getLastModified()) {
+				ret.append("lastModified '").append(patchedLocalFile.getLastModified()).append("'");
+			}
+			if (patchedLocalFile.getLastViewedByMeDate() != getLastViewedByMeDate()) {
+				ret.append("lastViewedByMeDate '").append(patchedLocalFile.getLastViewedByMeDate()).append("'");
+			}
+			return ret.toString();
+		}
 	}
 
-	private static Log logger = LogFactory.getLog(GoogleDrive.class);
+	private static final Log logger = LogFactory.getLog(GoogleDrive.class);
 
 	/**
 	 * Be sure to specify the name of your application. If the application name is {@code null} or blank, the application will log a
@@ -413,49 +438,25 @@ public class GoogleDrive {
 	private static final String APPLICATION_NAME = "google-drive-ftp-adapter";
 
 	/** Directory to store user credentials. */
-	private java.io.File DATA_STORE_DIR;
+	private final java.io.File DATA_STORE_DIR;
 
 	/**
 	 * Global instance of the {@link DataStoreFactory}. The best practice is to make it a single globally shared instance across your
 	 * application.
 	 */
-	private FileDataStoreFactory dataStoreFactory;
-
-	private static GoogleDrive instance;
+	private final FileDataStoreFactory dataStoreFactory;
 
 	/** Global instance of the JSON factory. */
-	private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
+	private final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
 
 	/** Global instance of the HTTP transport. */
 	private final HttpTransport httpTransport;
-
-	static {
-
-	}
-
-	public static GoogleDrive getInstance() {
-		if (instance == null) {
-			throw new IllegalStateException("GoogleDrive not yet initialized");
-		}
-		return instance;
-	}
-
-	public static GoogleDrive getInstance(Properties configuration) {
-		if (instance == null) {
-			instance = new GoogleDrive(configuration);
-		}
-		return instance;
-	}
-
-	public long getLargestChangeId(long localLargestChangeId) {
-		return getLargestChangeIdImpl(localLargestChangeId, 3);
-	}
 
 	private Credential credential;
 
 	private Drive drive;
 
-	private GoogleDrive(Properties configuration) {
+	public GoogleDrive(Properties configuration) {
 		DATA_STORE_DIR = new java.io.File("data/google/" + configuration.getProperty("account", "default"));
 
 		try {
@@ -468,6 +469,10 @@ public class GoogleDrive {
 			throw new RuntimeException("No se pudo inicializar la API de Google");
 		}
 		init();
+	}
+
+	public long getLargestChangeId(long localLargestChangeId) {
+		return getLargestChangeIdImpl(localLargestChangeId, 3);
 	}
 
 	private void init() {
@@ -489,7 +494,7 @@ public class GoogleDrive {
 	private Credential authorize() throws Exception {
 		// load client secrets
 		GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY,
-				new InputStreamReader(FTPGFile.class.getResourceAsStream("/client_secrets.json")));
+				new InputStreamReader(GFile.class.getResourceAsStream("/client_secrets.json")));
 		if (clientSecrets.getDetails().getClientId().startsWith("Enter")
 				|| clientSecrets.getDetails().getClientSecret().startsWith("Enter ")) {
 			System.out.println("Overwrite the src/main/resources/client_secrets.json file with the client secrets file "
@@ -498,26 +503,10 @@ public class GoogleDrive {
 					+ "into src/main/resources/client_secrets.json");
 			System.exit(1);
 		}
-
-		// Set up authorization code flow.
-		// Ask for only the permissions you need. Asking for more permissions
-		// will
-		// reduce the number of users who finish the process for giving you
-		// access
-		// to their accounts. It will also increase the amount of effort you
-		// will
-		// have to spend explaining to users what you are doing with their data.
-		// Here we are listing all of the available scopes. You should remove
-		// scopes
-		// that you are not actually using.
+		// set up authorization code flow
 		Set<String> scopes = new HashSet<String>();
 		scopes.add(DriveScopes.DRIVE);
-		scopes.add(DriveScopes.DRIVE_APPDATA);
-		scopes.add(DriveScopes.DRIVE_APPS_READONLY);
-		scopes.add(DriveScopes.DRIVE_FILE);
-		scopes.add(DriveScopes.DRIVE_METADATA_READONLY);
-		scopes.add(DriveScopes.DRIVE_READONLY);
-		scopes.add(DriveScopes.DRIVE_SCRIPTS);
+		scopes.add(DriveScopes.DRIVE_METADATA);
 
 		GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(httpTransport, JSON_FACTORY, clientSecrets, scopes)
 				.setDataStoreFactory(dataStoreFactory).build();
@@ -601,7 +590,7 @@ public class GoogleDrive {
 		}
 	}
 
-	void getFileDownloadURL(FTPGFile jfsgDriveFile) {
+	void getFileDownloadURL(GFile jfsgDriveFile) {
 		// get download URL
 		try {
 			File googleFile = getFile(jfsgDriveFile.getId());
@@ -635,7 +624,7 @@ public class GoogleDrive {
 	 * @return File containing the file's content if successful, {@code null} otherwise.
 	 */
 	public// TODO: Just pass the file id? name maybe could be printed in caller
-	java.io.File downloadFile(FTPGFile jfsgDriveFile) {
+	java.io.File downloadFile(GFile jfsgDriveFile) {
 		logger.info("Downloading file '" + jfsgDriveFile.getName() + "'...");
 
 		java.io.File ret = null;
@@ -670,7 +659,7 @@ public class GoogleDrive {
 	}
 
 	public File mkdir(String parentId, String filename) {
-		FTPGFile jfsgFile = new FTPGFile(Collections.singleton(parentId), filename);
+		GFile jfsgFile = new GFile(Collections.singleton(parentId), filename);
 		jfsgFile.setDirectory(true);
 		return uploadFile(jfsgFile, 3);
 	}
@@ -692,12 +681,12 @@ public class GoogleDrive {
 	 *            Filename of the file to insert.
 	 * @return Inserted file metadata if successful, {@code null} otherwise.
 	 */
-	public File uploadFile(FTPGFile jfsgFile) {
+	public File uploadFile(GFile jfsgFile) {
 		return uploadFile(jfsgFile, 3);
 	}
 
 	// TODO: upload with AbstractInputStream
-	private File uploadFile(FTPGFile jfsgFile, int retry) {
+	private File uploadFile(GFile jfsgFile, int retry) {
 		try {
 			File file = null;
 			FileContent mediaContent = null;
@@ -737,7 +726,7 @@ public class GoogleDrive {
 				final Update updateRequest = drive.files().update(jfsgFile.getId(), null, mediaContent);
 				File remoteFile = getFile(jfsgFile.getId());
 				if (remoteFile != null) {
-					final MIME_TYPE mimeType = FTPGFile.MIME_TYPE.parse(remoteFile.getMimeType());
+					final MIME_TYPE mimeType = GFile.MIME_TYPE.parse(remoteFile.getMimeType());
 					if (mimeType != null) {
 						switch (mimeType) {
 						case GOOGLE_DOC:
@@ -863,36 +852,6 @@ public class GoogleDrive {
 		}
 
 	}
-
-	// void patchFile(FTPGFile localFile, File file) {
-	// int idx = localFile.getPath().indexOf(FTPGFile.FILE_SEPARATOR);
-	// String newPath = getFilename(file);
-	// if (idx != -1) {
-	// newPath = localFile.getPath().substring(0, idx + 1) + newPath;
-	// }
-	// localFile.setPath(newPath);
-	// localFile.setLength(getFileSize(file));
-	// localFile.setLastModified2(getLastModified(file));
-	// localFile.setMd5Checksum(file.getMd5Checksum());
-	//
-	// }
-
-	// public String mkdirs(String path) {
-	// String[] paths = path.split(FTPGFile.FILE_SEPARATOR);
-	// String lastParentId = "root";
-	// for (String subpath : paths) {
-	// FTPGFile dir = getFileByName(lastParentId, subpath);
-	// if (dir == null) {
-	// lastParentId = mkdir(lastParentId, subpath).getId();
-	// } else if (dir.isDirectory()) {
-	// lastParentId = dir.getId();
-	// } else {
-	// throw new RuntimeException("El directorio " + path
-	// + " no se puede crear por " + subpath);
-	// }
-	// }
-	// return lastParentId;
-	// }
 
 	public File trashFile(String fileId, int retry) {
 		try {

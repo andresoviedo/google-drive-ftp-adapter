@@ -6,10 +6,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Date;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.andresoviedo.apps.gdrive_ftp_adapter.model.Cache;
 import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive;
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive.FTPGFile;
+import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive.GFile;
 import org.andresoviedo.apps.gdrive_ftp_adapter.service.FtpGdriveSynchService;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
@@ -27,6 +30,33 @@ import com.google.api.client.util.DateTime;
  */
 public final class Controller {
 
+	private static class LRUCache<K, V> extends LinkedHashMap<K, V> {
+
+		private static final long serialVersionUID = 5705764796697720184L;
+
+		private int size;
+
+		private LRUCache(int size) {
+			super(size, 0.75f, true);
+			this.size = size;
+		}
+
+		@Override
+		protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
+			return size() > size;
+		}
+	}
+
+	private static class ControllerRequest {
+		private Date date;
+		private int times;
+
+		private ControllerRequest(Date date, int times) {
+			this.date = date;
+			this.times = times;
+		}
+	}
+
 	private static final Log LOG = LogFactory.getLog(Controller.class);
 
 	public static final String FILE_SEPARATOR = "/";
@@ -37,28 +67,54 @@ public final class Controller {
 
 	private final Cache cache;
 
-	public Controller(Cache cache) {
-		googleDriveService = GoogleDrive.getInstance();
-		updaterService = FtpGdriveSynchService.getInstance();
+	// TODO: patch: retry action if we receive multiple requests in a few amount of time. This should be done in a separate component
+	private final Map<String, ControllerRequest> lastQueries = new LRUCache<String, ControllerRequest>(10);
+
+	public Controller(Cache cache, GoogleDrive googleDrive, FtpGdriveSynchService updaterService) {
+		this.googleDriveService = googleDrive;
+		this.updaterService = updaterService;
 		this.cache = cache;
 	}
 
 	public void init() {
 	}
 
-	public boolean renameFile(FTPGFile file, String newName) {
-		LOG.info("Renaming file " + file.getName() + " to " + newName);
-		return touch(file, new FTPGFile(newName));
+	public List<GFile> getFiles(String folderId) {
+
+		// patch
+		ControllerRequest lastAction = lastQueries.get("getFiles-" + folderId);
+		if (lastAction == null) {
+			lastAction = new ControllerRequest(new Date(), 0);
+			lastQueries.put("getFiles-" + folderId, lastAction);
+		}
+		lastAction.times++;
+
+		if (lastAction.times > 2) {
+			if (System.currentTimeMillis() < (lastAction.date.getTime() + 10000)) {
+				LOG.info("Forcing update for folder '" + folderId + "'");
+				updaterService.updateFolderNow(folderId);
+			}
+			lastAction.times = 0;
+			lastAction.date = new Date();
+		}
+		// patch
+
+		return cache.getFiles(folderId);
 	}
 
-	public boolean updateLastModified(FTPGFile fTPGFile, long time) {
+	public boolean renameFile(GFile file, String newName) {
+		LOG.info("Renaming file " + file.getName() + " to " + newName);
+		return touch(file, new GFile(newName));
+	}
+
+	public boolean updateLastModified(GFile fTPGFile, long time) {
 		LOG.info("Updating last modification date for " + fTPGFile.getName() + " to " + new Date(time));
-		FTPGFile patch = new FTPGFile(null);
+		GFile patch = new GFile(null);
 		patch.setLastModified(time);
 		return touch(fTPGFile, patch);
 	}
 
-	private boolean touch(FTPGFile ftpFile, FTPGFile patch) {
+	private boolean touch(GFile ftpFile, GFile patch) {
 		LOG.info("Patching file " + ftpFile.getName() + " with " + patch);
 		// com.google.api.services.drive.model.File googleFile =
 		// googleDriveService
@@ -90,7 +146,7 @@ public final class Controller {
 		return false;
 	}
 
-	public boolean trashFile(FTPGFile file) {
+	public boolean trashFile(GFile file) {
 		String fileId = file.getId();
 		LOG.info("Deleting file " + fileId + "...");
 		boolean ret = googleDriveService.trashFile(fileId, 3) != null;
@@ -99,7 +155,7 @@ public final class Controller {
 		return ret;
 	}
 
-	public boolean mkdir(String parentFileId, FTPGFile fTPGFile) {
+	public boolean mkdir(String parentFileId, GFile fTPGFile) {
 		com.google.api.services.drive.model.File newDir = googleDriveService.mkdir(parentFileId, fTPGFile.getName());
 		boolean ret = newDir != null;
 		if (ret)
@@ -108,7 +164,7 @@ public final class Controller {
 	}
 
 	// TODO: Implement offset
-	public InputStream createInputStream(FTPGFile fTPGFile, long offset) {
+	public InputStream createInputStream(GFile fTPGFile, long offset) {
 		File transferFile = googleDriveService.downloadFile(fTPGFile);
 		if (transferFile == null) {
 			throw new IllegalStateException("No se dispone de la URL de descarga");
@@ -124,8 +180,8 @@ public final class Controller {
 
 	}
 
-	public OutputStream createOutputStream(final FTPGFile fTPGFileW, long offset) {
-		final FTPGFile fTPGFile = fTPGFileW;
+	public OutputStream createOutputStream(final GFile fTPGFileW, long offset) {
+		final GFile fTPGFile = fTPGFileW;
 		if (fTPGFile.isDirectory()) {
 			throw new IllegalArgumentException("createOutputStream en directorio?");
 		}
