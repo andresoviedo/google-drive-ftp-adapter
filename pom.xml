@@ -173,16 +173,6 @@
 				<version>2.5.5</version>
 				<executions>
 					<execution>
-						<id>bundle</id>
-						<phase>package</phase>
-						<goals>
-							<goal>single</goal>
-						</goals>
-						<configuration>
-							<descriptor>src/main/assembly/default.xml</descriptor>
-						</configuration>
-					</execution>
-					<execution>
 						<id>jar-with-dependencies</id>
 						<phase>package</phase>
 						<goals>
@@ -198,6 +188,26 @@
 								</manifest>
 							</archive>
 							<descriptor>src/main/assembly/jar-with-dependencies.xml</descriptor>
+						</configuration>
+					</execution>
+					<execution>
+						<id>bundle</id>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<descriptor>src/main/assembly/bundle.xml</descriptor>
+						</configuration>
+					</execution>
+					<execution>
+						<id>win32-jre7</id>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<descriptor>src/main/assembly/win32-jre7.xml</descriptor>
 						</configuration>
 					</execution>
 				</executions>

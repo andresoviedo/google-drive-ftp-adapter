@@ -70,8 +70,9 @@ http://www.andresoviedo.org/google-drive-ftp-adapter
 Download
 ========
 
-Latest version 1.2.0 (11/10/2015)  
-- https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-1.2.0-bundle.zip
+Latest version 1.2.1 (12/10/2015)
+- https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-bundle.zip
+- https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-jar-with-dependencies.jar
 
 
 Buid It!
@@ -88,7 +89,7 @@ Run it!
     $ java -jar google-drive-ftp-adapter-jar-with-dependencies.jar
     
 - If you don't have JAVA installed and you are in Windows:
-  - Download the google-drive-ftp-adapter-bundle.zip
+  - Download the https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-win32-jre7-bundle.zip
   - Unzip it
   - Execute windows-install-java.cmd
   - Execute start.cmd
@@ -222,7 +223,7 @@ ChangeLog
 (f) fixed, (i) improved, (n) new feature
 
 - v1.2.1 (12/12/2015)
- - (n) Hack to force cache to rebuild folder info (in ftp type "dir" 3 times) 
+ - (n) "Hack" to force cache to refetch folder info (refresh folder or type "dir" 3 times in ftp) 
  - (i) Updated to latest version 1.20.0 of google-api-services-drive.jar
  - (f) Removed not used permissions for the google authorization. Now only DRIVE & DRIVE_METADATA used
 - v1.2.0 (10/10/2015)
