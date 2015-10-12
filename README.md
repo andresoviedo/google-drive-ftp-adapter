@@ -52,7 +52,8 @@ Notes
 - The google-drive-ftp-adapter DOES NOT synch your files to/from google drive. If you want to synch your files,
   you should do it with your FTP tool.
 - Google drive supports repeated filenames in same folder and illegal file names in contrast to linux & windows. 
-  But don't worry because this is supported!
+  But don't worry because this is supported! These files will appear with chars encoded to _ (underscore) and an ID
+  to keep track of the file. 
 
 
 Source Code
@@ -96,15 +97,14 @@ Run it!
 - Once the application is started, a Google authorization dialog in your Internet browser will ask you to allow
 google drive ftp application to acces your files. Click "OK". 
 
-- Now you can use ftp://user:user@localhost:1821/ from your application to to connect 
-to your google drive.
 
-	
 	
 Test it!
 ========
 
-Open terminal and type "ftp localhost 1821": Type "user" as the username and "user" as password. Once in FTP, type "dir" to see
+- Open ftp://user:user@localhost:1821/ in your browser to connect to your google drive.
+
+- Or open terminal and type "ftp localhost 1821": Type "user" as the username and "user" as password. Once in FTP, type "dir" to see
 your drive files. Example:
 
     $ ftp localhost 1821
@@ -172,17 +172,17 @@ this is a reserved port (below 1024 are privileged ports), so we better work wit
 There is another start2.cmd as example (windows) that start an ftp adapter at port 22. 
 
 
-Known Problems
-==============
+- Note: If you have different google drive accounts, you can launch multiple google-drive-ftp-adapter 
+  in the same machine, each listening at different port. Just put a different fileId so they write logs in different files.
 
-- For some type of files, the size of files reported by google differs from what the local operating system does (txt, 3gp).
-  I'll think how to fix it.
-- google-drive ftp adapter does not support FTP authentication. If you have different google drive accounts,
-  you can launch multiple google-drive-ftp-adapter in the same machine, each listening at different port.
-- If you have timeout problems, it's maybe because you have a slow internet connection. So increment timeout
-  in your FTP tool if your internet connection to avoid errors
 
- 
+Known Issues
+============
+
+- For some type of files, the size of files reported by google differs from what the local operating system does (txt, 3gp). I'll think how to fix it.
+- If you have timeout problems, maybe it's because you have a slow internet connection. Try to increment timeout in your FTP tool
+
+  
 Disclaimer
 ==========
 	

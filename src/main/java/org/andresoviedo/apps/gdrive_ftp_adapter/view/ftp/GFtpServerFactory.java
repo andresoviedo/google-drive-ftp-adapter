@@ -74,7 +74,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 		this.model = model;
 		this.configuration = configuration;
 		this.illegalChars = Pattern.compile(configuration.getProperty("os.illegalCharacters", DEFAULT_ILLEGAL_CHARS_REGEX));
-		LOG.info("Configured illegalchars '"+illegalChars+"'");
+		LOG.info("Configured illegalchars '" + illegalChars + "'");
 		init();
 	}
 
@@ -126,10 +126,10 @@ public class GFtpServerFactory extends FtpServerFactory {
 			defaultUser.setName(configuration.getProperty("ftp.user", "user"));
 			defaultUser.setPassword(configuration.getProperty("ftp.pass", "user"));
 			List<Authority> authorities = new ArrayList<Authority>();
-            authorities.add(new WritePermission());
-            authorities.add(new ConcurrentLoginPermission(10, 5));
-            defaultUser.setAuthorities(authorities);
-			LOG.info("FTP User Manager configured for user '"+defaultUser.getName()+"'");
+			authorities.add(new WritePermission());
+			authorities.add(new ConcurrentLoginPermission(10, 5));
+			defaultUser.setAuthorities(authorities);
+			LOG.info("FTP User Manager configured for user '" + defaultUser.getName() + "'");
 
 			anonUser = new BaseUser(defaultUser);
 			anonUser.setName("anonymous");
@@ -165,8 +165,8 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 		@Override
 		public boolean doesExist(String username) throws FtpException {
-			return ((defaultUser.getEnabled() && defaultUser.getName().equals(username)) || (anonUser.getEnabled() && anonUser.getName().equals(
-					username))) ? true : false;
+			return ((defaultUser.getEnabled() && defaultUser.getName().equals(username)) || (anonUser.getEnabled() && anonUser.getName()
+					.equals(username))) ? true : false;
 		}
 
 		@Override
@@ -282,8 +282,8 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 			@Override
 			public boolean delete() {
-				if (!doesExist()){
-					throw new RuntimeException("Oops! Tried to delete file '"+getName()+"' although it doesn't exists");
+				if (!doesExist()) {
+					throw new RuntimeException("Oops! Tried to delete file '" + getName() + "' although it doesn't exists");
 				}
 				return controller.trashFile(this.unwrap());
 			}
@@ -360,7 +360,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 			}
 		}
 
-		public static final String ENCODED_FILE_TOKEN = "__###__";
+		public static final String DUP_FILE_TOKEN = "__ID__";
 
 		// public static final String PEDING_SYNCHRONIZATION_TOKEN = "__UNSYNCH__";
 
@@ -370,7 +370,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 		public static final String FILE_SELF = ".";
 
-		private final Pattern ENCODED_FILE_PATTERN = Pattern.compile("^(.*)\\Q" + ENCODED_FILE_TOKEN + "\\E(.{28})\\Q" + ENCODED_FILE_TOKEN
+		private final Pattern ENCODED_FILE_PATTERN = Pattern.compile("^(.*)\\Q" + DUP_FILE_TOKEN + "\\E(.{28})\\Q" + DUP_FILE_TOKEN
 				+ "\\E(.*)$");
 
 		private final User user;
@@ -501,9 +501,9 @@ public class GFtpServerFactory extends FtpServerFactory {
 			// write log just for info
 			StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
 			StackTraceElement caller = stackTraceElements[2];
-			if (RNTO.class.getName().equals(caller.getClassName()) && fileName.contains(ENCODED_FILE_TOKEN)) {
+			if (RNTO.class.getName().equals(caller.getClassName()) && fileName.contains(DUP_FILE_TOKEN)) {
 				LOG.info("User is renaming a file which contains special chars to this gdrive ftp adapter. Please avoid using the token '"
-						+ ENCODED_FILE_TOKEN + "' in the filename.");
+						+ DUP_FILE_TOKEN + "' in the filename.");
 			}
 
 			LOG.debug("Getting file '" + fileName + "'...");
@@ -589,9 +589,9 @@ public class GFtpServerFactory extends FtpServerFactory {
 		 * <li>/,file.txt</li>
 		 * <li>/,folder/file.txt</li>
 		 * <li>/,folder/subfolder/file.txt</li>
-		 * <li>/,file__###__google_file_id__##__.txt</li>
-		 * <li>/,folder__###__google_file_id__##__/file.txt</li>
-		 * <li>/,folder__###__google_file_id__##__/subfolder__###__google_file_id_##__/file.txt</li>
+		 * <li>/,file__ID__google_file_id__ID__.txt</li>
+		 * <li>/,folder__ID__google_file_id__ID__/file.txt</li>
+		 * <li>/,folder__ID__google_file_id__ID__/subfolder__ID__google_file_id__ID__/file.txt</li>
 		 * </ul>
 		 * 
 		 * @param folder
@@ -614,12 +614,12 @@ public class GFtpServerFactory extends FtpServerFactory {
 				LOG.debug("File '" + fileName + "' doesn't exist!");
 
 				// Encoded?
-				int nextIdx = fileName.indexOf(ENCODED_FILE_TOKEN);
+				int nextIdx = fileName.indexOf(DUP_FILE_TOKEN);
 				if (nextIdx != -1 && ENCODED_FILE_PATTERN.matcher(fileName).matches()) {
 					// caso normal
 
 					// Get file when the name is encoded. The encode name has the form:
-					// <filename>__###__<google_file_id>_###.<ext>.
+					// <filename>__ID__<google_file_id>_ID.<ext>.
 					Matcher matcher = ENCODED_FILE_PATTERN.matcher(fileName);
 					matcher.find();
 
@@ -630,7 +630,9 @@ public class GFtpServerFactory extends FtpServerFactory {
 					LOG.info("Searching encoded file '" + folder.getAbsolutePath() + (folder.isRoot() ? "" : FILE_SEPARATOR)
 							+ expectedFileName + "' ('" + fileId + "')...");
 					GFile gfile = model.getFile(fileId);
-					if (gfile != null && expectedFileName.equals(gfile.getName())) {
+					if (gfile != null
+							&& (expectedFileName.equals(gfile.getName()) || removeIllegalChars(gfile.getName()).equals(
+									expectedFileName))) {
 						// The file id exists, but we have to check also for filename so we are sure the referred file
 						// is the same
 						// TODO: check also the containing folder is the same
@@ -651,21 +653,25 @@ public class GFtpServerFactory extends FtpServerFactory {
 			}
 		}
 
-		private FtpFileWrapper createFtpFileWrapper(FtpFileWrapper folder, GFile gFile, String virtualFilename, boolean exists) {
+		private FtpFileWrapper createFtpFileWrapper(FtpFileWrapper folder, GFile gFile, String filename, boolean exists) {
 
 			// now lets remove illegal chars
-			final String filenameWithoutIllegalChars = illegalChars.matcher(virtualFilename).replaceAll("");
-			if (!virtualFilename.equals(filenameWithoutIllegalChars)) {
-				final String oldFilename = virtualFilename;
+			String filenameWithoutIllegalChars = removeIllegalChars(filename);
+			if (!filename.equals(filenameWithoutIllegalChars)) {
 				// update variable
-				virtualFilename = encodeFilename(filenameWithoutIllegalChars, gFile.getId());
-				LOG.info("Filename with illegal chars '" + oldFilename + "' has been given virtual name '" + virtualFilename + "'");
+				filename = encodeFilename(filenameWithoutIllegalChars, gFile.getId());
+				LOG.info("Filename with illegal chars '" + filename + "' has been given virtual name '" + filenameWithoutIllegalChars + "'");
 			}
 
-			String absolutePath = folder == null ? virtualFilename : folder.isRoot() ? FILE_SEPARATOR + virtualFilename : folder
-					.getAbsolutePath() + FILE_SEPARATOR + virtualFilename;
+			String absolutePath = folder == null ? filename : folder.isRoot() ? FILE_SEPARATOR + filename : folder.getAbsolutePath()
+					+ FILE_SEPARATOR + filename;
 			LOG.debug("Creating file wrapper " + absolutePath);
-			return new FtpFileWrapper(folder, gFile, virtualFilename);
+			return new FtpFileWrapper(folder, gFile, filename);
+		}
+
+		private String removeIllegalChars(String filename) {
+			// now lets remove illegal chars
+			return illegalChars.matcher(filename).replaceAll("_");
 		}
 
 		public List<FtpFile> listFiles(FtpFileWrapper folder) {
@@ -691,19 +697,19 @@ public class GFtpServerFactory extends FtpServerFactory {
 				// windows doesn't distinguish the case, unix does
 				// windows & linux can't have repeated filenames
 				// TODO: other OS I don't know yet...
-				String virtualFilename = OSUtils.isWindows() ? fileWrapper.getName().toLowerCase() : OSUtils.isUnix() ? fileWrapper
+				String filename = OSUtils.isWindows() ? fileWrapper.getName().toLowerCase() : OSUtils.isUnix() ? fileWrapper
 						.getName() : fileWrapper.getName();
 
 				// check if the filename is not yet duplicated
-				if (!allFilenames.containsKey(virtualFilename)) {
-					allFilenames.put(virtualFilename, fileWrapper);
+				if (!allFilenames.containsKey(filename)) {
+					allFilenames.put(filename, fileWrapper);
 					continue;
 				}
 
 				// these are the repeated files
-				final FtpFileWrapper firstFileDuplicated = allFilenames.get(virtualFilename);
-				firstFileDuplicated.setVirtualName(encodeFilename(virtualFilename, firstFileDuplicated.getId()));
-				fileWrapper.setVirtualName(encodeFilename(virtualFilename, ftpFile.getId()));
+				final FtpFileWrapper firstFileDuplicated = allFilenames.get(filename);
+				firstFileDuplicated.setVirtualName(encodeFilename(filename, firstFileDuplicated.getId()));
+				fileWrapper.setVirtualName(encodeFilename(filename, ftpFile.getId()));
 
 				LOG.info("Generated virtual filename for duplicated file '" + firstFileDuplicated.getName() + "'");
 				LOG.info("Generated virtual filename for duplicated file '" + fileWrapper.getName() + "'");
@@ -724,7 +730,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 			// lets change the filename so we simulate we have different filenames...
 			// this instruction by the way is executed several times but it doesn't matter because the generated
 			// name is always the same
-			return filename + ENCODED_FILE_TOKEN + fileId + ENCODED_FILE_TOKEN + ext;
+			return filename + DUP_FILE_TOKEN + fileId + DUP_FILE_TOKEN + ext;
 		}
 	}
 
