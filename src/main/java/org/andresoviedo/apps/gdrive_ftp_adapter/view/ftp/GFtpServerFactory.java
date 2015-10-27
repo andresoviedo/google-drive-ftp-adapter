@@ -432,6 +432,9 @@ public class GFtpServerFactory extends FtpServerFactory {
 			try {
 				// initialize working directory in case this is the first call
 				initWorkingDirectory();
+				
+				// remove trailing FILE_SEPARATOR (but keep leading ones)
+				if (path.length() > 1 && path.endsWith(FILE_SEPARATOR)) path = path.substring(0, path.length()-1);
 
 				LOG.debug("Changing working directory from '" + currentDir + "' to '" + path + "'...");
 
@@ -552,7 +555,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 			}
 
 			FtpFileWrapper folder;
-			if (path.startsWith(currentDir.getAbsolutePath() + FILE_SEPARATOR)) {
+			if (path.startsWith(currentDir.isRoot() ? currentDir.getAbsolutePath() : currentDir.getAbsolutePath() + FILE_SEPARATOR)) {
 				// get the relative filename
 				folder = currentDir;
 				path = path.substring(folder.getAbsolutePath().length() + 1);
