@@ -700,17 +700,17 @@ public class GFtpServerFactory extends FtpServerFactory {
 				// windows doesn't distinguish the case, unix does
 				// windows & linux can't have repeated filenames
 				// TODO: other OS I don't know yet...
-				String filename = OSUtils.isWindows() ? fileWrapper.getName().toLowerCase() : OSUtils.isUnix() ? fileWrapper
-						.getName() : fileWrapper.getName();
+				String filename = fileWrapper.getName();
+				String uniqueFilename = OSUtils.isWindows() ? filename.toLowerCase() : OSUtils.isUnix() ? filename : filename;
 
 				// check if the filename is not yet duplicated
-				if (!allFilenames.containsKey(filename)) {
-					allFilenames.put(filename, fileWrapper);
+				if (!allFilenames.containsKey(uniqueFilename)) {
+					allFilenames.put(uniqueFilename, fileWrapper);
 					continue;
 				}
 
 				// these are the repeated files
-				final FtpFileWrapper firstFileDuplicated = allFilenames.get(filename);
+				final FtpFileWrapper firstFileDuplicated = allFilenames.get(uniqueFilename);
 				firstFileDuplicated.setVirtualName(encodeFilename(filename, firstFileDuplicated.getId()));
 				fileWrapper.setVirtualName(encodeFilename(filename, ftpFile.getId()));
 
