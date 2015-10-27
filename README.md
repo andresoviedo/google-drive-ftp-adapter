@@ -3,7 +3,7 @@
 News
 ====
 
-**New version** v1.2.1 - 12 October 2015
+**New version** v1.2.2 - 27 October 2015
 - https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-jar-with-dependencies.jar
 - https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-bundle.zip
 
@@ -71,7 +71,7 @@ http://www.andresoviedo.org/google-drive-ftp-adapter
 Download
 ========
 
-Latest version 1.2.1 (12/10/2015)
+Latest version 1.2.2 (27/10/2015)
 - https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-bundle.zip
 - https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-jar-with-dependencies.jar
 
@@ -160,13 +160,13 @@ Here are the application parameters you can customize:
     os.illegalCharacters=\\/|[\\x00-\\x1F\\x7F]|\\`|\\?|\\*|\\\\|\\<|\\>|\\||\\"|\\:
 
 
-**google_account_name**
+**account**
 
 This is the name associated to the cache & google credentials, so the next time you run the application you don't
 have to re-login or resynchronize all the application cache. This is also the name of the subfolder under "/data"
 where information is going to be stored. Default value is "default".
 
-**ftp_port_number**
+**port**
 
 TCP port number where the ftp adapter is going to listen for ftp clients. Default FTP port is 21, but In Linux 
 this is a reserved port (below 1024 are privileged ports), so we better work with a port like 1821. Default is 1821.
@@ -223,6 +223,9 @@ ChangeLog
 
 (f) fixed, (i) improved, (n) new feature
 
+- v1.2.2 (27/10/2015)
+ - (f) fixes a issue with Windows (8.1) Explorer FTP, which sends CWD commands with trailing path separator
+ - (f) decoding an encoded filename did result in a different name on Windows as filename was made lower case, so use the lower case name just internally.
 - v1.2.1 (12/12/2015)
  - (n) "Hack" to force cache to refetch folder info (refresh folder or type "dir" 3 times in ftp) 
  - (i) Updated to latest version 1.20.0 of google-api-services-drive.jar

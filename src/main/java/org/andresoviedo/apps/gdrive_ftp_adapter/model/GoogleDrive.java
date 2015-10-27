@@ -81,7 +81,7 @@ public final class GoogleDrive {
 
 			private final String value;
 			private final String desc;
-			static Map<String, String> list = new HashMap<>();
+			static Map<String, String> list = new HashMap<String,String>();
 
 			MIME_TYPE(String value, String desc) {
 				this.value = value;
@@ -368,7 +368,7 @@ public final class GoogleDrive {
 		}
 
 		public static List<GFile> create(List<File> googleFiles, long revision) {
-			List<GFile> ret = new ArrayList<>(googleFiles.size());
+			List<GFile> ret = new ArrayList<GFile>(googleFiles.size());
 			for (File child : googleFiles) {
 				GFile localFile = create(child);
 				localFile.setRevision(revision);

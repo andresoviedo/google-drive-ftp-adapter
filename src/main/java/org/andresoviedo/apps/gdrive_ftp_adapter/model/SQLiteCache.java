@@ -245,7 +245,7 @@ public final class SQLiteCache implements Cache {
 					for (int i = 0; i < queries.size(); i++) {
 						LOG.error("Query '" + queries.get(i) + "' args '" + Arrays.toString(args.get(i)) + "' ");
 					}
-					throw ex;
+					throw new RuntimeException(ex);
 				} finally {
 					try {
 						connection.setAutoCommit(true);
