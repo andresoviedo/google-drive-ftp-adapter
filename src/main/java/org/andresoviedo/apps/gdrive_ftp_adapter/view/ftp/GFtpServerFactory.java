@@ -432,6 +432,9 @@ public class GFtpServerFactory extends FtpServerFactory {
 			try {
 				// initialize working directory in case this is the first call
 				initWorkingDirectory();
+				
+				// remove trailing FILE_SEPARATOR (but keep leading ones)
+				if (path.length() > 1 && path.endsWith(FILE_SEPARATOR)) path = path.substring(0, path.length()-1);
 
 				LOG.debug("Changing working directory from '" + currentDir + "' to '" + path + "'...");
 
@@ -552,7 +555,7 @@ public class GFtpServerFactory extends FtpServerFactory {
 			}
 
 			FtpFileWrapper folder;
-			if (path.startsWith(currentDir.getAbsolutePath() + FILE_SEPARATOR)) {
+			if (path.startsWith(currentDir.isRoot() ? currentDir.getAbsolutePath() : currentDir.getAbsolutePath() + FILE_SEPARATOR)) {
 				// get the relative filename
 				folder = currentDir;
 				path = path.substring(folder.getAbsolutePath().length() + 1);
@@ -697,17 +700,17 @@ public class GFtpServerFactory extends FtpServerFactory {
 				// windows doesn't distinguish the case, unix does
 				// windows & linux can't have repeated filenames
 				// TODO: other OS I don't know yet...
-				String filename = OSUtils.isWindows() ? fileWrapper.getName().toLowerCase() : OSUtils.isUnix() ? fileWrapper
-						.getName() : fileWrapper.getName();
+				String filename = fileWrapper.getName();
+				String uniqueFilename = OSUtils.isWindows() ? filename.toLowerCase() : OSUtils.isUnix() ? filename : filename;
 
 				// check if the filename is not yet duplicated
-				if (!allFilenames.containsKey(filename)) {
-					allFilenames.put(filename, fileWrapper);
+				if (!allFilenames.containsKey(uniqueFilename)) {
+					allFilenames.put(uniqueFilename, fileWrapper);
 					continue;
 				}
 
 				// these are the repeated files
-				final FtpFileWrapper firstFileDuplicated = allFilenames.get(filename);
+				final FtpFileWrapper firstFileDuplicated = allFilenames.get(uniqueFilename);
 				firstFileDuplicated.setVirtualName(encodeFilename(filename, firstFileDuplicated.getId()));
 				fileWrapper.setVirtualName(encodeFilename(filename, ftpFile.getId()));
 
