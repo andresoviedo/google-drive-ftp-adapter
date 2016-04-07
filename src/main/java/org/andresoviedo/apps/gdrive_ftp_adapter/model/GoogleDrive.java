@@ -15,8 +15,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive.GFile.MIME_TYPE;
+import org.andresoviedo.util.program.ProgramUtils;
+import org.andresoviedo.util.program.ProgramUtils.RequestsPerSecondController;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -60,6 +63,12 @@ public final class GoogleDrive {
 	private static final Log LOG = LogFactory.getLog(GFile.class);
 
 	/**
+	 * The google drive fixes the limit to 1000request/100second/user. We put 8 so
+	 * we don't work on the limits
+	 */
+	private static final int MAX_REQUESTS_PER_SECOND = 5;
+
+	/**
 	 * Represents a directory or a simple file. This object encapsulates the Java File object.
 	 * 
 	 * @author Jens Heidrich
@@ -81,7 +90,7 @@ public final class GoogleDrive {
 
 			private final String value;
 			private final String desc;
-			static Map<String, String> list = new HashMap<String,String>();
+			static Map<String, String> list = new HashMap<String, String>();
 
 			MIME_TYPE(String value, String desc) {
 				this.value = value;
@@ -359,7 +368,7 @@ public final class GoogleDrive {
 			if (googleFile.getLabels().getTrashed()) {
 				newFile.setLabels(Collections.singleton("trashed"));
 			} else {
-				newFile.setLabels(Collections.<String> emptySet());
+				newFile.setLabels(Collections.<String>emptySet());
 			}
 			if (googleFile.getLastViewedByMeDate() != null) {
 				newFile.setLastViewedByMeDate(googleFile.getLastViewedByMeDate().getValue());
@@ -456,6 +465,11 @@ public final class GoogleDrive {
 
 	private Drive drive;
 
+	// restrict to 100/request per second (the rate limit is
+	// 100/second/user)
+	private final ProgramUtils.RequestsPerSecondController bandwidthController = new RequestsPerSecondController(
+			MAX_REQUESTS_PER_SECOND, TimeUnit.SECONDS.toMillis(1));
+
 	public GoogleDrive(Properties configuration) {
 		DATA_STORE_DIR = new java.io.File("data/google/" + configuration.getProperty("account", "default"));
 
@@ -483,6 +497,7 @@ public final class GoogleDrive {
 
 			// set up global Drive instance
 			drive = new Drive.Builder(httpTransport, JSON_FACTORY, credential).setApplicationName(APPLICATION_NAME).build();
+			bandwidthController.start();
 
 			logger.info("Google drive webservice client initialized.");
 		} catch (Exception e) {
@@ -528,6 +543,7 @@ public final class GoogleDrive {
 			logger.trace("list(" + id + ") retry " + retry);
 
 			Files.List request = drive.files().list();
+
 			request.setQ("trashed = false and '" + id + "' in parents");
 
 			do {
@@ -535,7 +551,10 @@ public final class GoogleDrive {
 					throw new InterruptedException("Interrupted before fetching file metadata");
 				}
 
+				// control we are not exceeding number of requests/second
+				bandwidthController.newRequest();
 				FileList files = request.execute();
+
 				childIds.addAll(files.getItems());
 				request.setPageToken(files.getNextPageToken());
 
@@ -568,7 +587,11 @@ public final class GoogleDrive {
 	private File getFile_impl(String fileId, int retry) {
 		try {
 			logger.trace("getFile(" + fileId + ")");
+
+			// control we are not exceeding number of requests/second
+			bandwidthController.newRequest();
 			File file = drive.files().get(fileId).execute();
+
 			logger.trace("getFile(" + fileId + ") = " + file.getTitle());
 			return file;
 		} catch (GoogleJsonResponseException e) {
@@ -639,6 +662,7 @@ public final class GoogleDrive {
 				return null;
 			}
 
+			bandwidthController.newRequest();
 			HttpResponse resp = drive.getRequestFactory().buildGetRequest(new GenericUrl(jfsgDriveFile.getDownloadUrl())).execute();
 
 			tmpFile = java.io.File.createTempFile("gdrive-synch-", ".download");
@@ -716,8 +740,12 @@ public final class GoogleDrive {
 				file.setParents(newParents);
 
 				if (mediaContent == null) {
+					// control we are not exceeding number of requests/second
+					bandwidthController.newRequest();
 					file = drive.files().insert(file).execute();
 				} else {
+					// control we are not exceeding number of requests/second
+					bandwidthController.newRequest();
 					file = drive.files().insert(file, mediaContent).execute();
 				}
 				logger.info("File created " + file.getTitle() + " (" + file.getId() + ")");
@@ -739,6 +767,7 @@ public final class GoogleDrive {
 						}
 					}
 				}
+				bandwidthController.newRequest();
 				file = updateRequest.execute();
 				logger.info("File updated " + file.getTitle() + " (" + file.getId() + ")");
 			}
@@ -761,12 +790,17 @@ public final class GoogleDrive {
 		long ret = 0;
 		try {
 			Changes.List request = drive.changes().list();
+
 			if (startLargestChangeId > 0) {
 				request.setStartChangeId(startLargestChangeId);
 			}
 			request.setMaxResults(1);
 			request.setFields("largestChangeId");
+
+			// control we are not exceeding number of requests/second
+			bandwidthController.newRequest();
 			ChangeList changes = request.execute();
+
 			ret = changes.getLargestChangeId();
 		} catch (IOException e) {
 			if (retry > 0) {
@@ -801,7 +835,10 @@ public final class GoogleDrive {
 				request.setStartChangeId(startChangeId);
 			}
 			do {
+				// control we are not exceeding number of requests/second
+				bandwidthController.newRequest();
 				ChangeList changes = request.execute();
+
 				result.addAll(changes.getItems());
 				request.setPageToken(changes.getNextPageToken());
 			} while (request.getPageToken() != null && request.getPageToken().length() > 0);
@@ -836,6 +873,8 @@ public final class GoogleDrive {
 			if (patch.getModifiedDate() != null) {
 				patchRequest.setSetModifiedDate(true);
 			}
+			// control we are not exceeding number of requests/second
+			bandwidthController.newRequest();
 			File updatedFile = patchRequest.execute();
 			return updatedFile;
 		} catch (Exception e) {
@@ -856,6 +895,8 @@ public final class GoogleDrive {
 	public File trashFile(String fileId, int retry) {
 		try {
 			logger.info("Deleting file " + fileId);
+			// control we are not exceeding number of requests/second
+			bandwidthController.newRequest();
 			return drive.files().trash(fileId).execute();
 		} catch (IOException e) {
 			if (retry > 0) {

@@ -558,7 +558,11 @@ public class GFtpServerFactory extends FtpServerFactory {
 			if (path.startsWith(currentDir.isRoot() ? currentDir.getAbsolutePath() : currentDir.getAbsolutePath() + FILE_SEPARATOR)) {
 				// get the relative filename
 				folder = currentDir;
-				path = path.substring(folder.getAbsolutePath().length() + 1);
+				if (folder.isRoot()) {
+					path = path.substring(1);
+				} else {
+					path = path.substring(folder.getAbsolutePath().length() + 1);
+				}
 			} else {
 				// remove starting slash
 				folder = home;

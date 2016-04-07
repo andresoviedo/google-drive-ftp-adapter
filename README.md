@@ -3,11 +3,12 @@
 News
 ====
 
-**New version** v1.2.2 - 27 October 2015
+**New version** v1.2.3 - 07 April 2016
 - https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-jar-with-dependencies.jar
 - https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-bundle.zip
 
 **New features**:
+- Controlling of google drive use rate limit (fixes issue #6)
 - ftp configuration
 
 
@@ -75,7 +76,7 @@ http://www.andresoviedo.org/google-drive-ftp-adapter
 Download
 ========
 
-Latest version 1.2.2 (27/10/2015)
+Latest version 1.2.3 (07/04/2016)
 - https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-bundle.zip
 - https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-jar-with-dependencies.jar
 
@@ -227,6 +228,9 @@ ChangeLog
 
 (f) fixed, (i) improved, (n) new feature
 
+- v1.2.3 (07/04/2016)
+ - (f) Controlling of google drive service user rate limit. Set to 5/req/user/sec Fixes issue #6
+ - (f) Fixed bug when receiving CWD command we were removing first character of folder
 - v1.2.2 (27/10/2015)
  - (f) fixes a issue with Windows (8.1) Explorer FTP, which sends CWD commands with trailing path separator
  - (f) decoding an encoded filename did result in a different name on Windows as filename was made lower case, so use the lower case name just internally.
