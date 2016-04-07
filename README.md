@@ -34,6 +34,10 @@ Features
   - Touch remote timestamps
   - Trash files or folders
 
+**Ideas for the future**:
+- implement the apache commons-vfs interface: https://commons.apache.org/proper/commons-vfs/
+- implement linux cif vfs protocol ;) http://www.ubiqx.org/cifs/Intro.html
+
 
 Screenshots
 ===========
