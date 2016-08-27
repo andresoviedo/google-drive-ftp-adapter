@@ -1,4 +1,4 @@
-![alt tag](./doc/images/google-drive-logo.svg)
+![alt tag](./doc/images/google-drive-logo.png)
 
 News
 ====
