@@ -1,4 +1,4 @@
-![alt tag](http://www.andresoviedo.org/google-drive-ftp-adapter/icon.jpeg)
+![alt tag](./doc/images/google-drive-logo.svg)
 
 News
 ====
@@ -181,7 +181,7 @@ Disclaimer
 - This application uses a Google Drive API Key with a courtesy of 10 requests/second/user and 10 million
   request/day. When it reaches the quota the application may stop working.
   
-Project info
+Project Info
 ============ 
 
 This application lets you connect your FTP applications to your Google Drive files through the FTP protocol 
@@ -204,8 +204,8 @@ Contact Information
 
 [Contact](http://www.andresoviedo.org)
 
-ChangeLog
-=========
+Change Log
+==========
 
 (f) fixed, (i) improved, (n) new feature
 
