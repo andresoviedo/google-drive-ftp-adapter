@@ -1,16 +1,17 @@
-![alt tag](./doc/images/google-drive-logo.png)
+![alt tag](doc/images/google-drive-logo.png)
 
 News
 ====
 
-**Newest Version** v1.2.3 - 07 April 2016
-- [jar-with-dependencies.jar](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-jar-with-dependencies.jar)
-- [adapter-bundle.zip](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-bundle.zip)
+**Latest Release** v1.2.3 - 07 April 2016
+- [adapter-bundle-jre7-win32.zip](build/google-drive-ftp-adapter-win32-jre7-bundle.zip)
 
 **New features**:
-- Updated documentation
 - Control user connection limit (fixes issue #6)
 - FTP configuration
+
+**Working on...**
+- Updating the README.md & logo - 09 September 2016
 
 About
 =====
@@ -41,12 +42,12 @@ Features
 Screenshots
 ===========
 
-![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-win32-start.jpg)
-![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-beyond-compare.jpg)
-![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-filezilla.png)
-![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-shell-ftp.png)
-![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-google-dialog.png)
-![alt tag](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/doc/images/screenshot-chrome.png)
+![alt tag](doc/images/screenshot-win32-start.jpg)
+![alt tag](doc/images/screenshot-beyond-compare.jpg)
+![alt tag](doc/images/screenshot-filezilla.png)
+![alt tag](doc/images/screenshot-shell-ftp.png)
+![alt tag](doc/images/screenshot-google-dialog.png)
+![alt tag](doc/images/screenshot-chrome.png)
 
 
 Notes
@@ -68,12 +69,14 @@ Web Site
 
 [www.andresoviedo.org](http://www.andresoviedo.org/google-drive-ftp-adapter)
 
-Download
-========
+Downloads
+=========
 
-Latest version 1.2.3 - 07 April 2016
-- [jar-with-dependencies.jar](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-jar-with-dependencies.jar)
-- [adapter-bundle.zip](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-bundle.zip)
+Latest Release 1.2.3 - 07 April 2016
+- Option 1 - /¡\ Java Required          : [jar-with-dependencies.jar](build/google-drive-ftp-adapter-jar-with-dependencies.jar)
+- Option 2 - /¡\ Java Required          : [adapter-bundle.zip](build/google-drive-ftp-adapter-bundle.zip)
+- Option 3 - Java for Windows included  : [adapter-bundle-jre7-win32.zip](build/google-drive-ftp-adapter-win32-jre7-bundle.zip)
+
 
 Buid It!
 =======
@@ -88,7 +91,7 @@ Run it!
     $ java -jar google-drive-ftp-adapter-jar-with-dependencies.jar
     
 - If you don't have Java installed and you are in Windows:
-  - Download from [here](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-win32-jre7-bundle.zip)
+  - Download from [here](build/google-drive-ftp-adapter-win32-jre7-bundle.zip)
   - Unzip it
   - Execute windows-install-java.cmd
   - Execute start.cmd
@@ -168,9 +171,36 @@ There is another start2.cmd as example (Windows) that start an FTP adapter at po
 - Note: If you have different Google Drive accounts, you can launch multiple google-drive-ftp-adapter 
   in the same machine, each listening at a different port. Just put a different fileId so they write logs in different files.
 
+
+F.A.Q.
+======
+
+ - Question: When I type in the username and password on the FTP client (e.g. in the FileZilla) it tells me "Authentication Failed":
+   - Answer: The user credentials to login to the ftp server are not the same user credentials that you use for loging into your google account.
+     Check in the README.md for the default user credentials to use.
+  
+ - Question: In my ftp client (e.g. FileZilla), when I download my google documents and I click on it they don't open.
+   - Answer: If they are documents like word or excel (either if it's google filetype or not), your filenames should end with a proper
+     filename extesion like "my_document.doc" or "my_google_sheet.xls" so your operating system can open it with your deafult installed applications.
+ 
+ - Question: How can I start a secondary server?
+   - Answer: You have 2 options so far:
+   	 * in the start2.cmd you have an example how to launch a secondary server passing an accountId and secondary port number. 
+   	   You may have different start.cmd to start different ftp servers (i.e. start-foo.cmd, start-bar.cmd).
+     * Or instead of passing the accounId and port number, you can pass a /path/to/secondary.properties 
+       That way you can specify different account ids and ports inside the file. 
+
+ - Question: When I launch the application nothing happens.
+   - Answer:  Check that in the console or file log there is no errors. Check that your default Internet browser doesn't have any plugin
+     that is causing the google authentication dialog to have any problems.  
+ 
+
 Known Issues
 ============
 
+- If you are in Windows 10 and you an error like the following, try to run program or terminal as administrator: 
+  java.lang.UnsatisfiedLinkError: C:\Users\Zeo\AppData\Local\Temp\sqlite-3.7.151-x86-sqlitejdbc.dll: Access is denied
+  
 - For some type of files, the size of files reported by Google differs from what the local operating system does (for example: .txt and .3gp) (Fix TBA)
 - If you have timeout problems because of slow internet connectivity, try incrementing the timeout in your FTP client.
   
