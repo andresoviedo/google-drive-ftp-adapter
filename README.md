@@ -1,44 +1,42 @@
-![alt tag](http://www.andresoviedo.org/google-drive-ftp-adapter/icon.jpeg)
+![alt tag](./doc/images/google-drive-logo.png)
 
 News
 ====
 
-**New version** v1.2.3 - 07 April 2016
-- https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-jar-with-dependencies.jar
-- https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-bundle.zip
+**Newest Version** v1.2.3 - 07 April 2016
+- [jar-with-dependencies.jar](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-jar-with-dependencies.jar)
+- [adapter-bundle.zip](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-bundle.zip)
 
 **New features**:
-- Controlling of google drive use rate limit (fixes issue #6)
-- ftp configuration
-
+- Updated documentation
+- Control user connection limit (fixes issue #6)
+- FTP configuration
 
 About
 =====
 
-- With google-drive-ftp-adapter you can connect to your Google Drive through the FTP protocol.
-- You can use it in conjunction with any FTP client: shell ftp, Beyond Compare, FileZilla, ...
-
+- With google-drive-ftp-adapter you can access your Google Drive through FTP protocols.
+- You can use it in conjunction with any FTP client: shell FTP, Beyond Compare, FileZilla, etc.
 
 Features
 ========
 
-- Standalone JAVA application. Just have JAVA installed & double click!
+- Standalone Java application
 - Apache Mina FTP Server as a gateway to your google drive files
 - Internal SQLite Cache for fast access to data
-- Google drive cache sinchronization by polling (10 seconds)
+- Google Drive cache synchronisation by polling every 10 seconds
 - Supported FTP commands:
   - List folders, subfolders and files
   - Renaming files
-  - Make new dirs
+  - Make new directories
   - Upload new files (includes gdoc conversion)
   - Download files to local PC (includes gdoc and gsheet conversion)
   - Touch remote timestamps
   - Trash files or folders
 
 **Ideas for the future**:
-- implement the apache commons-vfs interface: https://commons.apache.org/proper/commons-vfs/
-- implement linux cif vfs protocol ;) http://www.ubiqx.org/cifs/Intro.html
-
+- implement the apache commons-vfs interface [(Link)](https://commons.apache.org/proper/commons-vfs/)
+- implement linux cif vfs protocol [(Link)](http://www.ubiqx.org/cifs/Intro.html)
 
 Screenshots
 ===========
@@ -54,60 +52,52 @@ Screenshots
 Notes
 =====
 
-- The google-drive-ftp-adapter DOES NOT synch your files to/from google drive. If you want to synch your files,
+- The google-drive-ftp-adapter DOES NOT sync your files to / from Google Drive. If you want to sync your files,
   you should do it with your FTP tool.
-- Google drive supports repeated filenames in same folder and illegal file names in contrast to linux & windows. 
+- Google drive supports repeated filenames in same folder and illegal file names in contrast to many operating systems. 
   But don't worry because this is supported! These files will appear with chars encoded to _ (underscore) and an ID
   to keep track of the file. 
-
 
 Source Code
 ===========
 
-https://github.com/andresoviedo/google-drive-ftp-adapter
-
+[GitHub](https://github.com/andresoviedo/google-drive-ftp-adapter)
 
 Web Site
 ========
 
-http://www.andresoviedo.org/google-drive-ftp-adapter
-
+[www.andresoviedo.org](http://www.andresoviedo.org/google-drive-ftp-adapter)
 
 Download
 ========
 
-Latest version 1.2.3 (07/04/2016)
-- https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-bundle.zip
-- https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-jar-with-dependencies.jar
-
+Latest version 1.2.3 - 07 April 2016
+- [jar-with-dependencies.jar](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-jar-with-dependencies.jar)
+- [adapter-bundle.zip](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-bundle.zip)
 
 Buid It!
 =======
 
-The project is packaged with maven. If you want to build it just download project, compile it and run java with "org.andresoviedo.apps.gdrive_ftp_adapter.Main"
-
+The project is packaged with Maven. If you want to build it just download the project, compile it and run Java with "org.andresoviedo.apps.gdrive_ftp_adapter.Main"
 
 Run it!
 ======
 
-- If you have already JAVA installed download jar-with-dependencies.jar and double click on it or run from command line:
+- If you have Java installed already all you have to do is download jar-with-dependencies.jar and double click on it or run from command line:
 
     $ java -jar google-drive-ftp-adapter-jar-with-dependencies.jar
     
-- If you don't have JAVA installed and you are in Windows:
-  - Download the https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-win32-jre7-bundle.zip
+- If you don't have Java installed and you are in Windows:
+  - Download from [here](https://github.com/andresoviedo/google-drive-ftp-adapter/raw/master/build/google-drive-ftp-adapter-win32-jre7-bundle.zip)
   - Unzip it
   - Execute windows-install-java.cmd
   - Execute start.cmd
-- Once the application is started, a Google authorization dialog in your Internet browser will ask you to allow
-google drive ftp application to acces your files. Click "OK". 
-
-
+- Once the application is started, Google with request authorization through your browser to allow Google Drive FTP access to your data. Click "OK". 
 	
 Test it!
 ========
 
-- Open ftp://user:user@localhost:1821/ in your browser to connect to your google drive.
+- Open ftp://user:user@localhost:1821/ in your browser to connect to your Google Drive.
 
 - Or open terminal and type "ftp localhost 1821": Type "user" as the username and "user" as password. Once in FTP, type "dir" to see your drive files.
 
@@ -132,14 +122,13 @@ Ftp example:
     226 Closing data connection
     $ ftp>
 
-
 Application Configuration
 =========================
 
-The application works fine without configuration.  However, a default configuration.properties is provided
+The application works fine without configuration. However, a default 'configuration.properties' file is provided
 in case you want to customize them.
 
-If you want, you can also customize the path of the configuration.properties when launching the app:
+If you want, you can also customize the path of the 'configuration.properties' when launching the app:
 
     $ java -jar google-drive-ftp-adapter.jar [propertiesFilename] 
     
@@ -148,7 +137,7 @@ Here are the application parameters you can customize:
     # log4j.fileId if you have more than 1 instance of the app running
     log4j.fileId=
     
-    # account name associated to cache & google credentials 
+    # account name associated to cache and Google credentials 
     account=default
     
     # FTP port listening for incoming connections
@@ -164,30 +153,26 @@ Here are the application parameters you can customize:
     # Illegal characters for your file system so file copying works fine  
     os.illegalCharacters=\\/|[\\x00-\\x1F\\x7F]|\\`|\\?|\\*|\\\\|\\<|\\>|\\||\\"|\\:
 
-
 **account**
 
-This is the name associated to the cache & google credentials, so the next time you run the application you don't
-have to re-login or resynchronize all the application cache. This is also the name of the subfolder under "/data"
+This is the name associated to the cache and Google credentials, so the next time you run the application you don't
+have to re-login or resynchronize all of the application cache. This is also the name of the subfolder under "/data"
 where information is going to be stored. Default value is "default".
 
 **port**
 
 TCP port number where the ftp adapter is going to listen for ftp clients. Default FTP port is 21, but In Linux 
-this is a reserved port (below 1024 are privileged ports), so we better work with a port like 1821. Default is 1821.
-There is another start2.cmd as example (windows) that start an ftp adapter at port 22. 
+this is a reserved port and ports below 1024 are privileged, so we use port 1821. Default is 1821.
+There is another start2.cmd as example (Windows) that start an FTP adapter at port 22. 
 
-
-- Note: If you have different google drive accounts, you can launch multiple google-drive-ftp-adapter 
-  in the same machine, each listening at different port. Just put a different fileId so they write logs in different files.
-
+- Note: If you have different Google Drive accounts, you can launch multiple google-drive-ftp-adapter 
+  in the same machine, each listening at a different port. Just put a different fileId so they write logs in different files.
 
 Known Issues
 ============
 
-- For some type of files, the size of files reported by google differs from what the local operating system does (txt, 3gp). I'll think how to fix it.
-- If you have timeout problems, maybe it's because you have a slow internet connection. Try to increment timeout in your FTP tool
-
+- For some type of files, the size of files reported by Google differs from what the local operating system does (for example: .txt and .3gp) (Fix TBA)
+- If you have timeout problems because of slow internet connectivity, try incrementing the timeout in your FTP client.
   
 Disclaimer
 ==========
@@ -196,35 +181,31 @@ Disclaimer
 - This application uses a Google Drive API Key with a courtesy of 10 requests/second/user and 10 million
   request/day. When it reaches the quota the application may stop working.
   
-  
-Project info
+Project Info
 ============ 
 
 This application lets you connect your FTP applications to your Google Drive files through the FTP protocol 
-rather than using the Official's Google Drive client.
+rather than using the official Google Drive client.
 
-This custom google drive client was created because official's one can't be reinstalled in a new PC without 
-having to redownload all your drive files again, from the cloud to your local PC. So if you have hundred of Gigas 
-and a regular ADSL it would take weeks to complete. Also, because the official client does not support FAT32
+This custom Google Drive client was created because the official client can't be reinstalled on a new PC without 
+having to download all your drive files again. Also, because the official client does not support FAT32
 partitions and I used to have all my files in one of this partitions.
 
 So this application basically starts a FTP server in your local machine emulating that it is hosting your 
-google drive files, acting as a gateway. Once this setup is done, you can connect any FTP client to connect 
-to your google drive files. I use it in conjunction with Beyond compare to compare my local files 
-(stored anywhere in my cloud ;) and compare them to ones I have in the google drive cloud.
+Google Drive files, acting as a gateway. Once this setup is done, you can connect any FTP client to connect 
+to your Google Drive files. I use it in conjunction with Beyond Compare to compare my local files 
+(stored anywhere in my cloud ;) and compare them to ones I have in the Google Drive cloud.
 
 You are free to use this program while you keep this file and the authoring comments in the code. Any comments 
 and suggestions are welcome.
 
-
 Contact Information
 ===================
 
-http://www.andresoviedo.org
+[Contact](http://www.andresoviedo.org)
 
-
-ChangeLog
-=========
+Change Log
+==========
 
 (f) fixed, (i) improved, (n) new feature
 
