@@ -1,10 +1,10 @@
-![alt tag](doc/images/google-drive-logo.png)
+![alt tag](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/doc/images/google-drive-logo.png)
 
 News
 ====
 
 **Latest Release** v1.2.3 - 07 April 2016
-- [adapter-bundle-jre7-win32.zip](build/google-drive-ftp-adapter-win32-jre7-bundle.zip)
+- [adapter-bundle-jre7-win32.zip](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-win32-jre7-bundle.zip)
 
 **New features**:
 - Control user connection limit (fixes issue #6)
@@ -42,12 +42,12 @@ Features
 Screenshots
 ===========
 
-![alt tag](doc/images/screenshot-win32-start.jpg)
-![alt tag](doc/images/screenshot-beyond-compare.jpg)
-![alt tag](doc/images/screenshot-filezilla.png)
-![alt tag](doc/images/screenshot-shell-ftp.png)
-![alt tag](doc/images/screenshot-google-dialog.png)
-![alt tag](doc/images/screenshot-chrome.png)
+![alt tag](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/doc/images/screenshot-win32-start.jpg)
+![alt tag](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/doc/images/screenshot-beyond-compare.jpg)
+![alt tag](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/doc/images/screenshot-filezilla.png)
+![alt tag](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/doc/images/screenshot-shell-ftp.png)
+![alt tag](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/doc/images/screenshot-google-dialog.png)
+![alt tag](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/doc/images/screenshot-chrome.png)
 
 
 Notes
@@ -73,9 +73,9 @@ Downloads
 =========
 
 Latest Release 1.2.3 - 07 April 2016
-- Option 1 - /¡\ Java Required          : [jar-with-dependencies.jar](build/google-drive-ftp-adapter-jar-with-dependencies.jar)
-- Option 2 - /¡\ Java Required          : [adapter-bundle.zip](build/google-drive-ftp-adapter-bundle.zip)
-- Option 3 - Java for Windows included  : [adapter-bundle-jre7-win32.zip](build/google-drive-ftp-adapter-win32-jre7-bundle.zip)
+- Option 1 - /¡\ Java Required          : [jar-with-dependencies.jar](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-jar-with-dependencies.jar)
+- Option 2 - /¡\ Java Required          : [adapter-bundle.zip](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-bundle.zip)
+- Option 3 - Java for Windows included  : [adapter-bundle-jre7-win32.zip](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-win32-jre7-bundle.zip)
 
 
 Buid It!
@@ -91,7 +91,7 @@ Run it!
     $ java -jar google-drive-ftp-adapter-jar-with-dependencies.jar
     
 - If you don't have Java installed and you are in Windows:
-  - Download from [here](build/google-drive-ftp-adapter-win32-jre7-bundle.zip)
+  - Download from [here](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-win32-jre7-bundle.zip)
   - Unzip it
   - Execute windows-install-java.cmd
   - Execute start.cmd
