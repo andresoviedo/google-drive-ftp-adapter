@@ -1,3 +1,8 @@
+google-drive-ftp-adapter
+========================
+
+![codeship badge](https://codeship.com/projects/955a2600-646c-0134-321c-46895dbeddb7/status?branch=master)
+
 ![alt tag](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/doc/images/google-drive-logo.png)
 
 News
@@ -11,6 +16,7 @@ News
 - FTP configuration
 
 **Working on...**
+- Project integration with codeship :bowtie:
 - Updating the README.md & logo - 09 September 2016
 
 About
