@@ -37,6 +37,7 @@ import org.apache.ftpserver.ftplet.FtpException;
 import org.apache.ftpserver.ftplet.FtpFile;
 import org.apache.ftpserver.ftplet.FtpReply;
 import org.apache.ftpserver.ftplet.FtpRequest;
+import org.apache.ftpserver.ftplet.Ftplet;
 import org.apache.ftpserver.ftplet.User;
 import org.apache.ftpserver.ftplet.UserManager;
 import org.apache.ftpserver.impl.FtpIoSession;
@@ -90,6 +91,11 @@ public class GFtpServerFactory extends FtpServerFactory {
 		CommandFactoryFactory ccf = new CommandFactoryFactory();
 		ccf.addCommand("MFMT", new FtpCommands.MFMT());
 		setCommandFactory(ccf.createCommandFactory());
+		
+		// TODO: set ftplet to control all commands
+		/*Map<String,Ftplet> ftplets = new HashMap<String,Ftplet>();
+		ftplets.put("default", new FtpletController());
+		setFtplets(ftplets);*/
 
 		// set the port of the listener
 		int port = Integer.parseInt(configuration.getProperty("port", String.valueOf(1821)));
@@ -97,14 +103,12 @@ public class GFtpServerFactory extends FtpServerFactory {
 		LOG.info("FTP server configured at '" + serverAddress + ":" + port + "'");
 		ListenerFactory listenerFactory = new ListenerFactory();
 		listenerFactory.setPort(port);
-		if (!serverAddress.isEmpty())
-		{
+		if (!serverAddress.isEmpty()){
 			listenerFactory.setServerAddress(serverAddress);
 		}
 
 		// replace the default listener
 		addListener("default", listenerFactory.createListener());
-
 	}
 
 	class FtpUserManagerFactory implements UserManagerFactory {
@@ -124,13 +128,16 @@ public class GFtpServerFactory extends FtpServerFactory {
 			super(adminName, passwordEncryptor);
 
 			defaultUser = new BaseUser();
-			defaultUser.setAuthorities(Arrays.asList(new Authority[] { new ConcurrentLoginPermission(1, 1) }));
 			defaultUser.setEnabled(true);
-			defaultUser.setHomeDirectory("c:\\temp");
+			defaultUser.setHomeDirectory(configuration.getProperty("ftp.home", ""));
 			defaultUser.setMaxIdleTime(300);
 			defaultUser.setName(configuration.getProperty("ftp.user", "user"));
 			defaultUser.setPassword(configuration.getProperty("ftp.pass", "user"));
-			List<Authority> authorities = new ArrayList<Authority>();
+			List<Authority> authorities = new ArrayList<>();
+			// TODO: configure rights
+			/*if (configuration.getProperty("ftp.rights","LIST").contains("LIST")){
+				authorities.add(new ListPermission());
+			}*/
 			authorities.add(new WritePermission());
 			authorities.add(new ConcurrentLoginPermission(10, 5));
 			defaultUser.setAuthorities(authorities);
@@ -425,7 +432,8 @@ public class GFtpServerFactory extends FtpServerFactory {
 					if (currentDir == null) {
 						LOG.info("Initializing ftp view...");
 						// TODO: what happen if a file is named "root"?
-						this.home = new FtpFileWrapper(null, model.getFile("root"), "/");
+						this.home = user.getHomeDirectory().equals("")? new FtpFileWrapper(null, model.getFile("root"), "/") : 
+							getFileByRelativePath(new FtpFileWrapper(null,model.getFile("root"),"/"), user.getHomeDirectory());
 						this.currentDir = this.home;
 					}
 				}
@@ -463,10 +471,23 @@ public class GFtpServerFactory extends FtpServerFactory {
 						// we are already in root directory
 						return true;
 					}
+					
+					// dont let user go up from his home folder
+					if (currentDir.getAbsolutePath().equals(home.getAbsolutePath())){
+						return false;
+					}
 
 					// this is a deeper subfolder
 					currentDir = currentDir.getParentFile();
 					return true;
+				}
+				
+				// dont let user go up from his home folder
+				if (home.getAbsolutePath().equals(path)){
+					currentDir = home;
+					return true;
+				} else if (home.getAbsolutePath().startsWith(path)){
+					return false;
 				}
 
 				FtpFileWrapper file = null;
@@ -568,10 +589,15 @@ public class GFtpServerFactory extends FtpServerFactory {
 				} else {
 					path = path.substring(folder.getAbsolutePath().length() + 1);
 				}
-			} else {
+			} else{
 				// remove starting slash
 				folder = home;
-				path = path.substring(1);
+				if (path.startsWith(folder.getAbsolutePath())){
+					path = path.substring(folder.getAbsolutePath().length());
+				}
+				else{
+					path = path.substring(1);
+				}
 			}
 
 			return getFileByRelativePath(folder, path);

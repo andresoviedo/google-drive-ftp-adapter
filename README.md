@@ -8,16 +8,15 @@ google-drive-ftp-adapter
 News
 ====
 
-**Latest Release** v1.2.3 - 07 April 2016
+**Latest Release** v1.3.0 - 1 December 2017
 - [adapter-bundle-jre7-win32.zip](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-win32-jre7-bundle.zip)
 
 **New features**:
-- Control user connection limit (fixes issue #6)
-- FTP configuration
+- Bind server address (pull request #16)
+- FTP home directory configurable (fix #15)
 
 **Working on...**
-- Project integration with codeship :bowtie:
-- Updating the README.md & logo - 09 September 2016
+- FTP user rights
 
 About
 =====
@@ -78,7 +77,7 @@ Web Site
 Downloads
 =========
 
-Latest Release 1.2.3 - 07 April 2016
+Latest Release 1.3.0 - 1 December 2017
 - Option 1 - /¡\ Java Required          : [jar-with-dependencies.jar](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-jar-with-dependencies.jar)
 - Option 2 - /¡\ Java Required          : [adapter-bundle.zip](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-bundle.zip)
 - Option 3 - Java for Windows included  : [adapter-bundle-jre7-win32.zip](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-win32-jre7-bundle.zip)
@@ -149,7 +148,8 @@ Here are the application parameters you can customize:
     # account name associated to cache and Google credentials 
     account=default
     
-    # FTP port listening for incoming connections
+    # FTP binding address and port listening for incoming connections
+	server=
     port=1821
     
     # FTP Enable anonymous login?
@@ -158,6 +158,7 @@ Here are the application parameters you can customize:
     # FTP default user credentials
     ftp.user=user
     ftp.pass=user
+    ftp.home=
     
     # Illegal characters for your file system so file copying works fine  
     os.illegalCharacters=\\/|[\\x00-\\x1F\\x7F]|\\`|\\?|\\*|\\\\|\\<|\\>|\\||\\"|\\:
@@ -167,6 +168,10 @@ Here are the application parameters you can customize:
 This is the name associated to the cache and Google credentials, so the next time you run the application you don't
 have to re-login or resynchronize all of the application cache. This is also the name of the subfolder under "/data"
 where information is going to be stored. Default value is "default".
+
+**server**
+
+Binding address to listen for incoming connections. Empty to bind all addresses.
 
 **port**
 
@@ -245,26 +250,29 @@ Change Log
 
 (f) fixed, (i) improved, (n) new feature
 
+- v1.3.0 (01/12/2017)
+  - (f) #16 Configurable binding address
+  - (f) #15 Configurable user home directory
 - v1.2.3 (07/04/2016)
- - (f) Controlling of google drive service user rate limit. Set to 5/req/user/sec Fixes issue #6
- - (f) Fixed bug when receiving CWD command we were removing first character of folder
+  - (f) Controlling of google drive service user rate limit. Set to 5/req/user/sec Fixes issue #6
+  - (f) Fixed bug when receiving CWD command we were removing first character of folder
 - v1.2.2 (27/10/2015)
- - (f) fixes a issue with Windows (8.1) Explorer FTP, which sends CWD commands with trailing path separator
- - (f) decoding an encoded filename did result in a different name on Windows as filename was made lower case, so use the lower case name just internally.
+  - (f) fixes a issue with Windows (8.1) Explorer FTP, which sends CWD commands with trailing path separator
+  - (f) decoding an encoded filename did result in a different name on Windows as filename was made lower case, so use the lower case name just internally.
 - v1.2.1 (12/12/2015)
- - (n) "Hack" to force cache to refetch folder info (refresh folder or type "dir" 3 times in ftp) 
- - (i) Updated to latest version 1.20.0 of google-api-services-drive.jar
- - (f) Removed not used permissions for the google authorization. Now only DRIVE & DRIVE_METADATA used
+  - (n) "Hack" to force cache to refetch folder info (refresh folder or type "dir" 3 times in ftp) 
+  - (i) Updated to latest version 1.20.0 of google-api-services-drive.jar
+  - (f) Removed not used permissions for the google authorization. Now only DRIVE & DRIVE_METADATA used
 - v1.2.0 (10/10/2015)
- - (n) support for assembly application into jar-with-dependencies.jar
- - (n) support for configuration.properties
- - (n) new properties can be configured like "ftp.user", "ftp.pass" "os.illegalCharacters"
+  - (n) support for assembly application into jar-with-dependencies.jar
+  - (n) support for configuration.properties
+  - (n) new properties can be configured like "ftp.user", "ftp.pass" "os.illegalCharacters"
 - v1.1.0 (09/10/2015)
- - (i) Complete refactoring to simplify design and to allow adding more features    
- - (f) Illegal filename handling
- - (f) Fixed several issues. Tested with Beyond Compare, FileZilla & Telnet
+  - (i) Complete refactoring to simplify design and to allow adding more features    
+  - (f) Illegal filename handling
+  - (f) Fixed several issues. Tested with Beyond Compare, FileZilla & Telnet
 - v1.0.1
- - (f) Changed google drive updater task from 10 minute to 10 seconds polling 
+  - (f) Changed google drive updater task from 10 minute to 10 seconds polling 
   
   
   
