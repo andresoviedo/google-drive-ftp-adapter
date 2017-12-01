@@ -93,9 +93,14 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 		// set the port of the listener
 		int port = Integer.parseInt(configuration.getProperty("port", String.valueOf(1821)));
-		LOG.info("FTP server configured at port '" + port + "'");
+		String serverAddress = configuration.getProperty("server", "");
+		LOG.info("FTP server configured at '" + serverAddress + ":" + port + "'");
 		ListenerFactory listenerFactory = new ListenerFactory();
 		listenerFactory.setPort(port);
+		if (!serverAddress.isEmpty())
+		{
+			listenerFactory.setServerAddress(serverAddress);
+		}
 
 		// replace the default listener
 		addListener("default", listenerFactory.createListener());
