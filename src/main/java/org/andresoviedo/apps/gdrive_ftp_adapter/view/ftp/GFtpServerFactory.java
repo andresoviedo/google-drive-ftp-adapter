@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -18,6 +17,16 @@ import java.util.regex.Pattern;
 import org.andresoviedo.apps.gdrive_ftp_adapter.controller.Controller;
 import org.andresoviedo.apps.gdrive_ftp_adapter.model.Cache;
 import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive.GFile;
+import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.AppendPermission;
+import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.CWDPermission;
+import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.DeletePermission;
+import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.ListPermission;
+import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.MakeDirPermission;
+import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.PWDPermission;
+import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.RemoveDirPermission;
+import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.RenameToPermission;
+import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.RetrievePermission;
+import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.StorePermission;
 import org.andresoviedo.util.os.OSUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -93,9 +102,9 @@ public class GFtpServerFactory extends FtpServerFactory {
 		setCommandFactory(ccf.createCommandFactory());
 		
 		// TODO: set ftplet to control all commands
-		/*Map<String,Ftplet> ftplets = new HashMap<String,Ftplet>();
+		Map<String,Ftplet> ftplets = new HashMap<String,Ftplet>();
 		ftplets.put("default", new FtpletController());
-		setFtplets(ftplets);*/
+		setFtplets(ftplets);
 
 		// set the port of the listener
 		int port = Integer.parseInt(configuration.getProperty("port", String.valueOf(1821)));
@@ -134,14 +143,43 @@ public class GFtpServerFactory extends FtpServerFactory {
 			defaultUser.setName(configuration.getProperty("ftp.user", "user"));
 			defaultUser.setPassword(configuration.getProperty("ftp.pass", "user"));
 			List<Authority> authorities = new ArrayList<>();
-			// TODO: configure rights
-			/*if (configuration.getProperty("ftp.rights","LIST").contains("LIST")){
+			final String rights = configuration.getProperty("ftp.rights","pwd|cd|dir|put|get|rename|delete|mkdir|rmdir|append");
+			if (rights.contains("pwd")){
+				authorities.add(new PWDPermission());
+			}
+			if (rights.contains("cd")){
+				authorities.add(new CWDPermission());
+			}
+			if (rights.contains("dir")){
 				authorities.add(new ListPermission());
-			}*/
+			}
+			if (rights.contains("put")){
+				authorities.add(new StorePermission());
+			}
+			if (rights.contains("get")){
+				authorities.add(new RetrievePermission());
+			}
+			if (rights.contains("rename")){
+				authorities.add(new RenameToPermission());
+			}
+			if (rights.contains("delete")){
+				authorities.add(new DeletePermission());
+			}
+			if (rights.contains("rmdir")){
+				authorities.add(new RemoveDirPermission());
+			}
+			if (rights.contains("mkdir")){
+				authorities.add(new MakeDirPermission());
+			}
+			if (rights.contains("append")){
+				authorities.add(new AppendPermission());
+			}
+			
 			authorities.add(new WritePermission());
 			authorities.add(new ConcurrentLoginPermission(10, 5));
 			defaultUser.setAuthorities(authorities);
 			LOG.info("FTP User Manager configured for user '" + defaultUser.getName() + "'");
+			LOG.info("FTP rights '" + rights + "'");
 
 			anonUser = new BaseUser(defaultUser);
 			anonUser.setName("anonymous");
@@ -295,7 +333,8 @@ public class GFtpServerFactory extends FtpServerFactory {
 			@Override
 			public boolean delete() {
 				if (!doesExist()) {
-					throw new RuntimeException("Oops! Tried to delete file '" + getName() + "' although it doesn't exists");
+					LOG.info("File '" + getName() + "' doesn't exists");
+					return false;
 				}
 				return controller.trashFile(this.unwrap());
 			}

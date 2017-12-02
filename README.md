@@ -8,15 +8,16 @@ google-drive-ftp-adapter
 News
 ====
 
-**Latest Release** v1.3.0 - 1 December 2017
+**Latest Release** v1.4.0 - 2 December 2017
 - [adapter-bundle-jre7-win32.zip](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-win32-jre7-bundle.zip)
 
 **New features**:
+- Set user rights (fix #15)
 - Bind server address (pull request #16)
 - FTP home directory configurable (fix #15)
 
 **Working on...**
-- FTP user rights
+- 
 
 About
 =====
@@ -31,6 +32,7 @@ Features
 - Apache Mina FTP Server as a gateway to your google drive files
 - Internal SQLite Cache for fast access to data
 - Google Drive cache synchronisation by polling every 10 seconds
+- User permissions
 - Supported FTP commands:
   - List folders, subfolders and files
   - Renaming files
@@ -159,6 +161,7 @@ Here are the application parameters you can customize:
     ftp.user=user
     ftp.pass=user
     ftp.home=
+    ftp.rights=pwd|cd|dir|put|get|rename|delete|mkdir|rmdir|append
     
     # Illegal characters for your file system so file copying works fine  
     os.illegalCharacters=\\/|[\\x00-\\x1F\\x7F]|\\`|\\?|\\*|\\\\|\\<|\\>|\\||\\"|\\:
@@ -250,9 +253,11 @@ Change Log
 
 (f) fixed, (i) improved, (n) new feature
 
+- v1.4.0 (02/12/2017)
+  - (n) #16 Configurable user permissions
 - v1.3.0 (01/12/2017)
-  - (f) #16 Configurable binding address
-  - (f) #15 Configurable user home directory
+  - (n) #16 Configurable binding address
+  - (n) #15 Configurable user home directory
 - v1.2.3 (07/04/2016)
   - (f) Controlling of google drive service user rate limit. Set to 5/req/user/sec Fixes issue #6
   - (f) Fixed bug when receiving CWD command we were removing first character of folder
