@@ -8,10 +8,11 @@ google-drive-ftp-adapter
 News
 ====
 
-**Latest Release** v1.4.0 - 2 December 2017
+**Latest Release** v1.4.1 - 8 December 2017
 - [adapter-bundle-jre7-win32.zip](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-win32-jre7-bundle.zip)
 
 **New features**:
+- Multiple ftp users (fix #17)
 - Set user rights (fix #15)
 - Bind server address (pull request #16)
 - FTP home directory configurable (fix #15)
@@ -32,7 +33,7 @@ Features
 - Apache Mina FTP Server as a gateway to your google drive files
 - Internal SQLite Cache for fast access to data
 - Google Drive cache synchronisation by polling every 10 seconds
-- User permissions
+- Users permissions
 - Supported FTP commands:
   - List folders, subfolders and files
   - Renaming files
@@ -79,7 +80,7 @@ Web Site
 Downloads
 =========
 
-Latest Release 1.3.0 - 1 December 2017
+Latest Release 1.4.1 - 8 December 2017
 - Option 1 - /¡\ Java Required          : [jar-with-dependencies.jar](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-jar-with-dependencies.jar)
 - Option 2 - /¡\ Java Required          : [adapter-bundle.zip](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-bundle.zip)
 - Option 3 - Java for Windows included  : [adapter-bundle-jre7-win32.zip](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-win32-jre7-bundle.zip)
@@ -157,11 +158,19 @@ Here are the application parameters you can customize:
     # FTP Enable anonymous login?
     ftp.anonymous.enabled=false
     
-    # FTP default user credentials
-    ftp.user=user
-    ftp.pass=user
+    # FTP users credentials
+    ftp.user=foo
+    ftp.pass=foopass
     ftp.home=
     ftp.rights=pwd|cd|dir|put|get|rename|delete|mkdir|rmdir|append
+    ftp.user2=bar
+    ftp.pass2=barpass
+    ftp.home2=path/to/bar/home
+    ftp.rights2=pwd|get
+    ftp.user3=baz
+    ftp.pass3=bazpass
+    ftp.home3=path/to/baz/home
+    ftp.rights3=dir|put
     
     # Illegal characters for your file system so file copying works fine  
     os.illegalCharacters=\\/|[\\x00-\\x1F\\x7F]|\\`|\\?|\\*|\\\\|\\<|\\>|\\||\\"|\\:
@@ -253,6 +262,8 @@ Change Log
 
 (f) fixed, (i) improved, (n) new feature
 
+- v1.4.1 (08/12/2017)
+  - (n) #17 Multiple ftp users
 - v1.4.0 (02/12/2017)
   - (n) #16 Configurable user permissions
 - v1.3.0 (01/12/2017)

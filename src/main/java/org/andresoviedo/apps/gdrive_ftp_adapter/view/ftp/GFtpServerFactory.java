@@ -28,6 +28,7 @@ import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.RenameToPer
 import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.RetrievePermission;
 import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.StorePermission;
 import org.andresoviedo.util.os.OSUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.ftpserver.ConnectionConfigFactory;
@@ -130,20 +131,37 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 	class FtpUserManager extends AbstractUserManager {
 
-		private BaseUser defaultUser;
-		private BaseUser anonUser;
+		private Map<String,BaseUser> users = new HashMap<>();
 
 		public FtpUserManager(String adminName, PasswordEncryptor passwordEncryptor) {
 			super(adminName, passwordEncryptor);
 
-			defaultUser = new BaseUser();
-			defaultUser.setEnabled(true);
-			defaultUser.setHomeDirectory(configuration.getProperty("ftp.home", ""));
-			defaultUser.setMaxIdleTime(300);
-			defaultUser.setName(configuration.getProperty("ftp.user", "user"));
-			defaultUser.setPassword(configuration.getProperty("ftp.pass", "user"));
+			BaseUser user = loadUser("", "user", "user");
+			users.put(user.getName(),user);
+			int i=2;
+			while ((user = loadUser(String.valueOf(i++),null,null)) != null){
+				users.put(user.getName(),user);
+			}
+			user = new BaseUser();
+			user.setName("anonymous");
+			user.setEnabled(Boolean.valueOf(configuration.getProperty("ftp.anonymous.enabled", "false")));
+			users.put(user.getName(), user);
+		}
+
+		private BaseUser loadUser(String suffix, String defaultUser, String defaultPassword) {
+			final String username = configuration.getProperty("ftp.user"+suffix, defaultUser);
+			final String password = configuration.getProperty("ftp.pass"+suffix, defaultPassword);
+			if (StringUtils.isBlank(username) || StringUtils.isBlank(password)){
+				return null;
+			}
+			BaseUser user = new BaseUser();
+			user.setEnabled(true);
+			user.setHomeDirectory(configuration.getProperty("ftp.home"+suffix, ""));
+			user.setMaxIdleTime(300);
+			user.setName(username);
+			user.setPassword(password);
 			List<Authority> authorities = new ArrayList<>();
-			final String rights = configuration.getProperty("ftp.rights","pwd|cd|dir|put|get|rename|delete|mkdir|rmdir|append");
+			final String rights = configuration.getProperty("ftp.rights"+suffix,"pwd|cd|dir|put|get|rename|delete|mkdir|rmdir|append");
 			if (rights.contains("pwd")){
 				authorities.add(new PWDPermission());
 			}
@@ -177,29 +195,23 @@ public class GFtpServerFactory extends FtpServerFactory {
 			
 			authorities.add(new WritePermission());
 			authorities.add(new ConcurrentLoginPermission(10, 5));
-			defaultUser.setAuthorities(authorities);
-			LOG.info("FTP User Manager configured for user '" + defaultUser.getName() + "'");
+			user.setAuthorities(authorities);
+			LOG.info("FTP User Manager configured for user '" + user.getName() + "'");
 			LOG.info("FTP rights '" + rights + "'");
-
-			anonUser = new BaseUser(defaultUser);
-			anonUser.setName("anonymous");
-			anonUser.setEnabled(Boolean.valueOf(configuration.getProperty("ftp.anonymous.enabled", "false")));
+			return user;
 		}
 
 		@Override
 		public User getUserByName(String username) throws FtpException {
-			if (defaultUser.getName().equals(username)) {
-				return defaultUser;
-			} else if (anonUser.getName().equals(username)) {
-				return anonUser;
+			if (users.containsKey(username)) {
+				return users.get(username);
 			}
-
 			return null;
 		}
 
 		@Override
 		public String[] getAllUserNames() throws FtpException {
-			return new String[] { defaultUser.getName(), anonUser.getName() };
+			return users.keySet().toArray(new String[users.size()]);
 		}
 
 		@Override
@@ -215,27 +227,22 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 		@Override
 		public boolean doesExist(String username) throws FtpException {
-			return ((defaultUser.getEnabled() && defaultUser.getName().equals(username)) || (anonUser.getEnabled() && anonUser.getName()
-					.equals(username))) ? true : false;
+			BaseUser user = users.get(username);
+			return user != null && user.getEnabled();
 		}
 
 		@Override
 		public User authenticate(Authentication authentication) throws AuthenticationFailedException {
 			if (UsernamePasswordAuthentication.class.isAssignableFrom(authentication.getClass())) {
 				UsernamePasswordAuthentication upAuth = (UsernamePasswordAuthentication) authentication;
-
-				if (defaultUser.getEnabled() && defaultUser.getName().equals(upAuth.getUsername())
-						&& defaultUser.getPassword().equals(upAuth.getPassword())) {
-					return defaultUser;
-				}
-
-				if (anonUser.getEnabled() && anonUser.getName().equals(upAuth.getUsername())) {
-					return anonUser;
+				BaseUser user = users.get(upAuth.getUsername());
+				if (user != null && user.getEnabled() && (user.getName().equals("anonymous") || user.getPassword().equals(upAuth.getPassword()))){
+					return user;
 				}
 			} else if (AnonymousAuthentication.class.isAssignableFrom(authentication.getClass())) {
-				return anonUser.getEnabled() ? anonUser : null;
+				BaseUser anonymous = users.get("anonymous");
+				return anonymous.getEnabled() ? anonymous : null;
 			}
-
 			return null;
 		}
 	}

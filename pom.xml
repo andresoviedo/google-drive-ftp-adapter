@@ -5,7 +5,7 @@
 
 	<groupId>org.andresoviedo</groupId>
 	<artifactId>google-drive-ftp-adapter</artifactId>
-	<version>1.4.0</version>
+	<version>1.4.1</version>
 
 	<name>Google Drive FTP Adapter</name>
 
