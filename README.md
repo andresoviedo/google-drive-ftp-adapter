@@ -257,6 +257,13 @@ Contact Information
 
 [Contact](http://www.andresoviedo.org)
 
+Donations
+=========
+
+If you like this project, please consider buying me a beer :)
+
+[<img src="https://www.paypalobjects.com/webstatic/en_US/i/btn/png/btn_donate_92x26.png">](https://www.paypal.me/andresoviedo)
+
 Change Log
 ==========
 
