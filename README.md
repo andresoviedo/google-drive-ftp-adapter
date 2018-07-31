@@ -17,9 +17,6 @@ News
 - Bind server address (pull request #16)
 - FTP home directory configurable (fix #15)
 
-**Working on...**
-- 
-
 About
 =====
 
@@ -251,6 +248,14 @@ to your Google Drive files. I use it in conjunction with Beyond Compare to compa
 
 You are free to use this program while you keep this file and the authoring comments in the code. Any comments 
 and suggestions are welcome.
+
+Get Involved
+============
+
+If you wanna contribute, users are requesting this: 
+* Support for FTPs (secure protocol)
+* Make google-drive-ftp-adapter a service available on Internet
+
 
 Contact Information
 ===================
