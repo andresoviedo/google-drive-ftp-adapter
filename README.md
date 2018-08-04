@@ -8,7 +8,7 @@ google-drive-ftp-adapter
 News
 ====
 
-**Latest Release** v1.4.1 - 8 December 2017
+**Latest Release** v1.5.0 - 04/08/2018
 - [adapter-bundle-jre7-win32.zip](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-win32-jre7-bundle.zip)
 
 **New features**:
@@ -274,6 +274,8 @@ Change Log
 
 (f) fixed, (i) improved, (n) new feature
 
+- v1.5.0 (04/08/2018)
+  - (i) Code refactoring. Decoupled components
 - v1.4.1 (08/12/2017)
   - (n) #17 Multiple ftp users
 - v1.4.0 (02/12/2017)

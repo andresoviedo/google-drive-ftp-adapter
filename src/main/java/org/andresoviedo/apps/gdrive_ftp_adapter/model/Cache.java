@@ -1,9 +1,8 @@
 package org.andresoviedo.apps.gdrive_ftp_adapter.model;
 
-import java.util.List;
-
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive.GFile;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
+
+import java.util.List;
 
 public interface Cache {
 
@@ -20,18 +19,18 @@ public interface Cache {
 	 * @throws IncorrectResultSizeDataAccessException
 	 *             if there is more than 1 file with the same name in the specified folder
 	 */
-	public abstract GFile getFileByName(String parentId, String filename) throws IncorrectResultSizeDataAccessException;
+	GFile getFileByName(String parentId, String filename) throws IncorrectResultSizeDataAccessException;
 
-	public abstract void addOrUpdateFile(GFile rootFile);
+	void addOrUpdateFile(GFile rootFile);
 
-	public abstract boolean updateFile(GFile file);
+	boolean updateFile(GFile file);
 
-	public abstract int deleteFile(String id);
+	int deleteFile(String id);
 
-	public abstract long getRevision();
+	long getRevision();
 
-	public abstract List<String> getAllFolderByRevision(long i);
+	List<String> getAllFolderByRevision(long i);
 
-	public abstract void updateChilds(GFile file, List<GFile> newChilds);
+	void updateChilds(GFile file, List<GFile> newChilds);
 
 }

@@ -1,28 +1,11 @@
 package org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp;
 
+import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.*;
+import org.apache.ftpserver.ftplet.*;
+
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-
-import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.AppendPermission;
-import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.CWDPermission;
-import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.DeletePermission;
-import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.ListPermission;
-import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.MakeDirPermission;
-import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.PWDPermission;
-import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.RemoveDirPermission;
-import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.RenameToPermission;
-import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.RetrievePermission;
-import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.StorePermission;
-import org.apache.ftpserver.ftplet.Authority;
-import org.apache.ftpserver.ftplet.DefaultFtpReply;
-import org.apache.ftpserver.ftplet.FtpException;
-import org.apache.ftpserver.ftplet.FtpReply;
-import org.apache.ftpserver.ftplet.FtpRequest;
-import org.apache.ftpserver.ftplet.FtpSession;
-import org.apache.ftpserver.ftplet.Ftplet;
-import org.apache.ftpserver.ftplet.FtpletContext;
-import org.apache.ftpserver.ftplet.FtpletResult;
 
 public class FtpletController implements Ftplet{
 	

@@ -1,11 +1,11 @@
 package org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp;
 
+import org.junit.Assert;
+import org.junit.Test;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
-
-import org.junit.Assert;
-import org.junit.Test;
 
 public class GFtpServerFactoryTest {
 

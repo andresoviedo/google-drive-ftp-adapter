@@ -1,27 +1,17 @@
 package org.andresoviedo.apps.gdrive_ftp_adapter.service;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Properties;
-import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
+import org.andresoviedo.apps.gdrive_ftp_adapter.model.Cache;
+import org.andresoviedo.apps.gdrive_ftp_adapter.model.GChange;
+import org.andresoviedo.apps.gdrive_ftp_adapter.model.GFile;
+import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.Cache;
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive;
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive.GFile;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import com.google.api.services.drive.model.Change;
-import com.google.api.services.drive.model.File;
-import com.google.api.services.drive.model.ParentReference;
 
 /**
  * Cache synchronization service (by polling).
@@ -75,8 +65,7 @@ public final class FtpGdriveSynchService {
 		synch(fileId);
 	}
 
-	public void updateNow(File googleFileUpdated) {
-		GFile updatedFile = GoogleDrive.GFile.create(googleFileUpdated);
+	public void updateNow(GFile updatedFile) {
 		updatedFile.setRevision(cache.getRevision());
 		cache.addOrUpdateFile(updatedFile);
 	}
@@ -109,14 +98,14 @@ public final class FtpGdriveSynchService {
 				long largestChangeId = cache.getRevision();
 				LOG.debug("Largest changeId found in local database " + largestChangeId);
 				if (largestChangeId > 0) {
-					List<Change> googleChanges;
+					List<GChange> googleChanges;
 					while (!(googleChanges = googleDrive.getAllChanges(largestChangeId + 1)).isEmpty()) {
 
 						// TODO: revisar la sincronización de esto cuando theads
 						// > 1
 						LOG.info("Detected " + googleChanges.size() + " changes");
 
-						for (Change change : googleChanges) {
+						for (GChange change : googleChanges) {
 							processChange(change.getFileId(), change);
 						}
 						largestChangeId = cache.getRevision();
@@ -127,9 +116,9 @@ public final class FtpGdriveSynchService {
 				}
 			}
 
-			private void processChange(String fileId, Change change) {
+			private void processChange(String fileId, GChange change) {
 				final GFile localFile = cache.getFile(fileId);
-				if (change.getDeleted() || change.getFile().getLabels().getTrashed()) {
+				if (change.getDeleted() || change.getFile().getLabels().contains("trashed")) {
 					if (localFile != null) {
 						LOG.info("File deleted remotely " + localFile.getName() + "...");
 						int deletedFiles = cache.deleteFile(localFile.getId());
@@ -145,41 +134,32 @@ public final class FtpGdriveSynchService {
 					return;
 				}
 
-				File changeFile = change.getFile();
-				Set<String> parents = new HashSet<String>();
-				for (ParentReference parentReference : changeFile.getParents()) {
-					if (parentReference.getIsRoot()) {
-						parents.add("root");
-					} else {
-						parents.add(parentReference.getId());
-					}
-				}
+				GFile changeFile = change.getFile();
+				// TODO: why am I not updating parents?
+				Set<String> parents = changeFile.getParents();
 
 				if (localFile == null) {
 					// TODO: arreglar el path
-					GFile newLocalFile = GoogleDrive.GFile.create(changeFile);
-					if (!newLocalFile.isDirectory()) {
-						newLocalFile.setRevision(change.getId());
+					if (!changeFile.isDirectory()) {
+						changeFile.setRevision(change.getId());
 					} else {
 						// si es un directorio no marcamos para que se sincronize luego
 					}
 
-					LOG.info("New file " + newLocalFile);
-					cache.addOrUpdateFile(newLocalFile);
+					LOG.info("New file " + changeFile);
+					cache.addOrUpdateFile(changeFile);
 
 				} else if (change.getId() > localFile.getRevision()) {
 					// File updated
 					// renamed file?
-					GFile patchedLocalFile = GoogleDrive.GFile.create(change.getFile());
-					LOG.info("Updating file " + localFile.getDiffs(patchedLocalFile));
-					patchedLocalFile.setRevision(change.getId());
-					cache.addOrUpdateFile(patchedLocalFile);
+					LOG.info("Updating file " + localFile.getDiffs(changeFile));
+					changeFile.setRevision(change.getId());
+					cache.addOrUpdateFile(changeFile);
 				} else {
 					LOG.error("Processing ununderstood change :(");
-					GFile patchedLocalFile = GoogleDrive.GFile.create(change.getFile());
-					LOG.error("Updating file " + localFile + " to " + patchedLocalFile);
-					patchedLocalFile.setRevision(change.getId());
-					cache.addOrUpdateFile(patchedLocalFile);
+					LOG.error("Updating file " + localFile + " to " + changeFile);
+					changeFile.setRevision(change.getId());
+					cache.addOrUpdateFile(changeFile);
 				}
 			}
 
@@ -248,14 +228,13 @@ public final class FtpGdriveSynchService {
 	public void synch(String fileId) {
 		LOG.info("Synching " + fileId + "...");
 		long largestChangeId = cache.getRevision();
-		File file = googleDrive.getFile(fileId);
+		GFile file = googleDrive.getFile(fileId);
 
-		if (file == null || file.getLabels().getTrashed()) {
+		if (file == null || file.getLabels().contains("trashed")) {
 			cache.deleteFile(fileId);
 		} else {
-			GFile updatedFile = GoogleDrive.GFile.create(file);
-			updatedFile.setRevision(largestChangeId);
-			cache.addOrUpdateFile(updatedFile);
+            file.setRevision(largestChangeId);
+			cache.addOrUpdateFile(file);
 		}
 	}
 
@@ -277,7 +256,7 @@ public final class FtpGdriveSynchService {
 			if (folderId.equals("root")) {
 				remoteFile = cache.getFile("root");
 			} else {
-				remoteFile = GoogleDrive.GFile.create(googleDrive.getFile(folderId));
+				remoteFile = googleDrive.getFile(folderId);
 				if (remoteFile == null || remoteFile.getLabels().contains("trashed")) {
 					// TODO: if exists maybe?
 					final int deleted = cache.deleteFile(folderId);
@@ -310,7 +289,7 @@ public final class FtpGdriveSynchService {
 
 			LOG.debug("Recreating childs for folder '" + folderId + "'");
 
-			List<GFile> newLocalChilds = GoogleDrive.GFile.create(googleDrive.list(folderId), 0);
+			List<GFile> newLocalChilds = googleDrive.list(folderId);
 			if (newLocalChilds == null) {
 				LOG.warn("File deleted remotely while requesting list?");
 				cache.deleteFile(folderId);

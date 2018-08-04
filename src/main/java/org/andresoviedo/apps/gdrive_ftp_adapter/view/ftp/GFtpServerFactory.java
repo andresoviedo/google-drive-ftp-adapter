@@ -1,32 +1,9 @@
 package org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.text.ParseException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import org.andresoviedo.apps.gdrive_ftp_adapter.controller.Controller;
 import org.andresoviedo.apps.gdrive_ftp_adapter.model.Cache;
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive.GFile;
-import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.AppendPermission;
-import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.CWDPermission;
-import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.DeletePermission;
-import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.ListPermission;
-import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.MakeDirPermission;
-import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.PWDPermission;
-import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.RemoveDirPermission;
-import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.RenameToPermission;
-import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.RetrievePermission;
-import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.StorePermission;
+import org.andresoviedo.apps.gdrive_ftp_adapter.model.GFile;
+import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.*;
 import org.andresoviedo.util.os.OSUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
@@ -38,27 +15,12 @@ import org.apache.ftpserver.command.CommandFactoryFactory;
 import org.apache.ftpserver.command.impl.MLSD;
 import org.apache.ftpserver.command.impl.RETR;
 import org.apache.ftpserver.command.impl.RNTO;
-import org.apache.ftpserver.ftplet.Authentication;
-import org.apache.ftpserver.ftplet.AuthenticationFailedException;
-import org.apache.ftpserver.ftplet.Authority;
-import org.apache.ftpserver.ftplet.FileSystemFactory;
-import org.apache.ftpserver.ftplet.FileSystemView;
-import org.apache.ftpserver.ftplet.FtpException;
-import org.apache.ftpserver.ftplet.FtpFile;
-import org.apache.ftpserver.ftplet.FtpReply;
-import org.apache.ftpserver.ftplet.FtpRequest;
-import org.apache.ftpserver.ftplet.Ftplet;
-import org.apache.ftpserver.ftplet.User;
-import org.apache.ftpserver.ftplet.UserManager;
+import org.apache.ftpserver.ftplet.*;
 import org.apache.ftpserver.impl.FtpIoSession;
 import org.apache.ftpserver.impl.FtpServerContext;
 import org.apache.ftpserver.impl.LocalizedFtpReply;
 import org.apache.ftpserver.listener.ListenerFactory;
-import org.apache.ftpserver.usermanager.AnonymousAuthentication;
-import org.apache.ftpserver.usermanager.ClearTextPasswordEncryptor;
-import org.apache.ftpserver.usermanager.PasswordEncryptor;
-import org.apache.ftpserver.usermanager.UserManagerFactory;
-import org.apache.ftpserver.usermanager.UsernamePasswordAuthentication;
+import org.apache.ftpserver.usermanager.*;
 import org.apache.ftpserver.usermanager.impl.AbstractUserManager;
 import org.apache.ftpserver.usermanager.impl.BaseUser;
 import org.apache.ftpserver.usermanager.impl.ConcurrentLoginPermission;
@@ -67,6 +29,14 @@ import org.apache.ftpserver.util.DateUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.text.ParseException;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class GFtpServerFactory extends FtpServerFactory {
 
@@ -374,12 +344,12 @@ public class GFtpServerFactory extends FtpServerFactory {
 
 			@Override
 			public OutputStream createOutputStream(long offset) throws IOException {
-				return controller.createOutputStream(this.unwrap(), offset);
+				return controller.createOutputStream(this.unwrap());
 			}
 
 			@Override
 			public InputStream createInputStream(long offset) throws IOException {
-				return controller.createInputStream(this.unwrap(), offset);
+				return controller.createInputStream(this.unwrap());
 			}
 
 			@Override

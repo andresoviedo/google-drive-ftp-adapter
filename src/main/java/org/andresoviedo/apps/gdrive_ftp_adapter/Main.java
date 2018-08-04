@@ -1,5 +1,10 @@
 package org.andresoviedo.apps.gdrive_ftp_adapter;
 
+import org.andresoviedo.util.jar.JarUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.log4j.Logger;
+import org.apache.log4j.xml.DOMConfigurator;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -7,11 +12,6 @@ import java.io.InputStream;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Properties;
-
-import org.andresoviedo.util.jar.JarUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
-import org.apache.log4j.xml.DOMConfigurator;
 
 // TODO: bug synching changes. First update from local storage will have
 // set max change id, so database will be "updated" for wrong.
@@ -25,7 +25,7 @@ public final class Main {
 
 	private static final String JVM_PROPERTY_LOG4J_FILE_ID_PROPERTY_NAME = "log4j.fileId";
 
-	private static GDriveFtpAdapter app;
+	private static GoogleDriveFtpAdapter app;
 
 	public static void main(String[] args) {
 
@@ -61,7 +61,7 @@ public final class Main {
 		configureLogging(configuration);
 
 		LOG.info("Creating application with configuration '" + configuration + "'");
-		app = new GDriveFtpAdapter(configuration);
+		app = new GoogleDriveFtpAdapter(configuration);
 
 		registerShutdownHook();
 
