@@ -12,24 +12,28 @@
 	<files>
 		<file>
 			<source>README.md</source>
-			<outputDirectory>/</outputDirectory>
+			<outputDirectory>./</outputDirectory>
+		</file>
+		<file>
+			<source>LICENSE</source>
+			<outputDirectory>./</outputDirectory>
 		</file>
 		<file>
 			<source>src/main/resources/configuration.properties</source>
-			<outputDirectory>/</outputDirectory>
+			<outputDirectory>./</outputDirectory>
 		</file>
 	</files>
 
 	<fileSets>
 		<fileSet>
 			<directory>src/main/bundle</directory>
-			<outputDirectory>/</outputDirectory>
+			<outputDirectory>./</outputDirectory>
 		</fileSet>
 	</fileSets>
 
 	<dependencySets>
 		<dependencySet>
-			<outputDirectory>/</outputDirectory>
+			<outputDirectory>./</outputDirectory>
 			<useProjectArtifact>true</useProjectArtifact>
 			<scope>provided</scope>
 			<outputFileNameMapping>${artifactId}.jar</outputFileNameMapping>
@@ -38,7 +42,7 @@
 			</includes>
 		</dependencySet>
 		<dependencySet>
-			<outputDirectory>/lib</outputDirectory>
+			<outputDirectory>./lib</outputDirectory>
 			<useProjectArtifact>false</useProjectArtifact>
 			<scope>runtime</scope>
 		</dependencySet>

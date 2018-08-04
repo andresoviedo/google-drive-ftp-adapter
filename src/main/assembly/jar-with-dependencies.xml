@@ -8,7 +8,7 @@
 	<includeBaseDirectory>false</includeBaseDirectory>
 	<dependencySets>
 		<dependencySet>
-			<outputDirectory>/</outputDirectory>
+			<outputDirectory>./</outputDirectory>
 			<useProjectArtifact>true</useProjectArtifact>
 			<includes>
 				<include>org.andresoviedo:*:*:*</include>
@@ -16,7 +16,7 @@
 			<unpack>true</unpack>
 		</dependencySet>
 		<dependencySet>
-			<outputDirectory>/</outputDirectory>
+			<outputDirectory>./</outputDirectory>
 			<useProjectArtifact>false</useProjectArtifact>
 			<unpack>true</unpack>
 			<unpackOptions>

@@ -5,6 +5,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.log4j.xml.DOMConfigurator;
 
+import javax.swing.*;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -29,43 +30,46 @@ public final class Main {
 
 	public static void main(String[] args) {
 
-		// configurePrimitiveLogging();
+		try {
+			JarUtils.printManifestAttributesToString();
 
-		JarUtils.printManifestAttributesToString();
+			LOG.info("Program info: " + JarUtils.getManifestAttributesAsMap());
 
-		LOG.info("Program info: " + JarUtils.getManifestAttributesAsMap());
+			LOG.info("Started with args '" + Arrays.asList(args) + "'...");
 
-		LOG.info("Started with args '" + Arrays.asList(args) + "'...");
+			// print again info so it's registered in the logs
+			LOG.info("Loading configuration...");
 
-		// print again info so it's registered in the logs
-		LOG.info("Loading configuration...");
+			// Load properties from multiple sources
+			Properties configuration = loadPropertiesFromClasspath();
+			configuration.putAll(loadProperties("configuration.properties"));
+			if (args.length == 1 && !"configuration.properties".equals(args[0])) {
+				configuration.putAll(loadProperties(args[0]));
+			}
+			configuration.putAll(readCommandLineConfiguration(args));
 
-		// Load properties from multiple sources
-		Properties configuration = loadPropertiesFromClasspath();
-		configuration.putAll(loadProperties("configuration.properties"));
-		if (args.length == 1 && !"configuration.properties".equals(args[0])) {
-			configuration.putAll(loadProperties(args[0]));
+			// validate params
+			if (args.length == 2) {
+				// legacy version. see if below
+			} else if (args.length > 1) {
+				throw new IllegalArgumentException("usage: args [propertiesFile]");
+			}
+
+			// INFO: uncomment to support multiples user environments
+			// properties = new MultiProperties(properties);
+
+			configureLogging(configuration);
+
+			LOG.info("Creating application with configuration '" + configuration + "'");
+			app = new GoogleDriveFtpAdapter(configuration);
+
+			registerShutdownHook();
+
+			start();
+		} catch (Exception e) {
+			LOG.error("Error loading app",e);
+			JOptionPane.showMessageDialog(null, "Error: "+e.getMessage());
 		}
-		configuration.putAll(readCommandLineConfiguration(args));
-
-		// validate params
-		if (args.length == 2) {
-			// legacy version. see if below
-		} else if (args.length > 1) {
-			throw new IllegalArgumentException("usage: args [propertiesFile]");
-		}
-
-		// INFO: uncomment to support multiples user environments
-		// properties = new MultiProperties(properties);
-
-		configureLogging(configuration);
-
-		LOG.info("Creating application with configuration '" + configuration + "'");
-		app = new GoogleDriveFtpAdapter(configuration);
-
-		registerShutdownHook();
-
-		start();
 	}
 
 	private static void start() {

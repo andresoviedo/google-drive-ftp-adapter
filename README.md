@@ -69,15 +69,11 @@ Source Code
 
 [GitHub](https://github.com/andresoviedo/google-drive-ftp-adapter)
 
-Web Site
-========
-
-[www.andresoviedo.org](http://www.andresoviedo.org/google-drive-ftp-adapter)
 
 Downloads
 =========
 
-Latest Release 1.4.1 - 8 December 2017
+Latest Release 1.5.8 - 04/08/2018
 - Option 1 - /¡\ Java Required          : [jar-with-dependencies.jar](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-jar-with-dependencies.jar)
 - Option 2 - /¡\ Java Required          : [adapter-bundle.zip](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-bundle.zip)
 - Option 3 - Java for Windows included  : [adapter-bundle-jre7-win32.zip](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-win32-jre7-bundle.zip)
@@ -86,14 +82,20 @@ Latest Release 1.4.1 - 8 December 2017
 Buid It!
 =======
 
-The project is packaged with Maven. If you want to build it just download the project, compile it and run Java with "Main"
+Install java 8 and maven 3. Then execute the following commands in the terminal:
+
+    git clone https://github.com/andresoviedo/google-drive-ftp-adapter.git
+    cd google-drive-ftp-adapter
+    mvn clean package
+
 
 Run it!
 ======
 
-- If you have Java installed already all you have to do is download jar-with-dependencies.jar and double click on it or run from command line:
+- Install java 8. Then double click on jar-with-dependencies.jar or execute the following command in the terminal:
 
-    $ java -jar google-drive-ftp-adapter-jar-with-dependencies.jar
+    java -jar google-drive-ftp-adapter-jar-with-dependencies.jar
+
     
 - If you don't have Java installed and you are in Windows:
   - Download from [here](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-win32-jre7-bundle.zip)
