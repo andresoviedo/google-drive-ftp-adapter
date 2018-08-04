@@ -39,7 +39,7 @@
 		<level value="info" />
 	</logger>
 
-	<logger name="org.andresoviedo.apps.gdrive_ftp_adapter.service.FtpGdriveSynchService">
+	<logger name="org.andresoviedo.google_drive_ftp_adapter.service.FtpGdriveSynchService">
 		<level value="info" />
 	</logger>
 

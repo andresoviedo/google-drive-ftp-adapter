@@ -1,4 +1,4 @@
-package org.andresoviedo.apps.gdrive_ftp_adapter;
+package org.andresoviedo.google_drive_ftp_adapter;
 
 import org.andresoviedo.util.jar.JarUtils;
 import org.apache.commons.lang3.StringUtils;

@@ -5,7 +5,7 @@
 
 	<groupId>org.andresoviedo</groupId>
 	<artifactId>google-drive-ftp-adapter</artifactId>
-	<version>1.4.1</version>
+	<version>1.5.0</version>
 
 	<name>Google Drive FTP Adapter</name>
 
@@ -162,7 +162,7 @@
 							<addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
 							<addClasspath>true</addClasspath>
 							<classpathPrefix>lib</classpathPrefix>
-							<mainClass>org.andresoviedo.apps.gdrive_ftp_adapter.Main</mainClass>
+							<mainClass>org.andresoviedo.google_drive_ftp_adapter.Main</mainClass>
 						</manifest>
 					</archive>
 				</configuration>
@@ -184,7 +184,7 @@
 									<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
 									<addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
 									<addClasspath>false</addClasspath>
-									<mainClass>org.andresoviedo.apps.gdrive_ftp_adapter.Main</mainClass>
+									<mainClass>org.andresoviedo.google_drive_ftp_adapter.Main</mainClass>
 								</manifest>
 							</archive>
 							<descriptor>src/main/assembly/jar-with-dependencies.xml</descriptor>

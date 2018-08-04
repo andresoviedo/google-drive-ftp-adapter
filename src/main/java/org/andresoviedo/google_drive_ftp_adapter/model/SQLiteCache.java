@@ -1,4 +1,4 @@
-package org.andresoviedo.apps.gdrive_ftp_adapter.model;
+package org.andresoviedo.google_drive_ftp_adapter.model;
 
 import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.commons.logging.Log;

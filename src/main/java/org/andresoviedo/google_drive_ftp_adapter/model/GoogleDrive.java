@@ -1,4 +1,4 @@
-package org.andresoviedo.apps.gdrive_ftp_adapter.model;
+package org.andresoviedo.google_drive_ftp_adapter.model;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.FileContent;

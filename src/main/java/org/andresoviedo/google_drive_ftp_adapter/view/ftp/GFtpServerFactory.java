@@ -1,9 +1,9 @@
-package org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp;
+package org.andresoviedo.google_drive_ftp_adapter.view.ftp;
 
-import org.andresoviedo.apps.gdrive_ftp_adapter.controller.Controller;
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.Cache;
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.GFile;
-import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.*;
+import org.andresoviedo.google_drive_ftp_adapter.controller.Controller;
+import org.andresoviedo.google_drive_ftp_adapter.model.Cache;
+import org.andresoviedo.google_drive_ftp_adapter.model.GFile;
+import org.andresoviedo.google_drive_ftp_adapter.view.ftp.Authorities.*;
 import org.andresoviedo.util.os.OSUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;

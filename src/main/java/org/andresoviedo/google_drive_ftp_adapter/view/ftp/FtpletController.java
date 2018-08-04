@@ -1,6 +1,5 @@
-package org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp;
+package org.andresoviedo.google_drive_ftp_adapter.view.ftp;
 
-import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.Authorities.*;
 import org.apache.ftpserver.ftplet.*;
 
 import java.io.IOException;
@@ -11,17 +10,17 @@ public class FtpletController implements Ftplet{
 	
 	private static Map<String,Class<? extends Authority>> commandAuthorityMap = new HashMap<>();
 	static{
-		commandAuthorityMap.put("PWD", PWDPermission.class);
-		commandAuthorityMap.put("CWD", CWDPermission.class);
-		commandAuthorityMap.put("LIST", ListPermission.class);
-		commandAuthorityMap.put("STOR", StorePermission.class);
-		commandAuthorityMap.put("DELE", DeletePermission.class);
-		commandAuthorityMap.put("RETR", RetrievePermission.class);
-		commandAuthorityMap.put("RMD", RemoveDirPermission.class);
-		commandAuthorityMap.put("MKD", MakeDirPermission.class);
-		commandAuthorityMap.put("APPE", AppendPermission.class);
-		commandAuthorityMap.put("RNFR", RenameToPermission.class);
-		commandAuthorityMap.put("RNTO", RenameToPermission.class);
+		commandAuthorityMap.put("PWD", Authorities.PWDPermission.class);
+		commandAuthorityMap.put("CWD", Authorities.CWDPermission.class);
+		commandAuthorityMap.put("LIST", Authorities.ListPermission.class);
+		commandAuthorityMap.put("STOR", Authorities.StorePermission.class);
+		commandAuthorityMap.put("DELE", Authorities.DeletePermission.class);
+		commandAuthorityMap.put("RETR", Authorities.RetrievePermission.class);
+		commandAuthorityMap.put("RMD", Authorities.RemoveDirPermission.class);
+		commandAuthorityMap.put("MKD", Authorities.MakeDirPermission.class);
+		commandAuthorityMap.put("APPE", Authorities.AppendPermission.class);
+		commandAuthorityMap.put("RNFR", Authorities.RenameToPermission.class);
+		commandAuthorityMap.put("RNTO", Authorities.RenameToPermission.class);
 	}
 
 	@Override

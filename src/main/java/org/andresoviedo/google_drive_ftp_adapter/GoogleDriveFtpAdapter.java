@@ -1,12 +1,12 @@
-package org.andresoviedo.apps.gdrive_ftp_adapter;
+package org.andresoviedo.google_drive_ftp_adapter;
 
-import org.andresoviedo.apps.gdrive_ftp_adapter.controller.Controller;
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.Cache;
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive;
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDriveFactory;
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.SQLiteCache;
-import org.andresoviedo.apps.gdrive_ftp_adapter.service.FtpGdriveSynchService;
-import org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp.GFtpServerFactory;
+import org.andresoviedo.google_drive_ftp_adapter.controller.Controller;
+import org.andresoviedo.google_drive_ftp_adapter.model.Cache;
+import org.andresoviedo.google_drive_ftp_adapter.model.GoogleDrive;
+import org.andresoviedo.google_drive_ftp_adapter.model.GoogleDriveFactory;
+import org.andresoviedo.google_drive_ftp_adapter.model.SQLiteCache;
+import org.andresoviedo.google_drive_ftp_adapter.service.FtpGdriveSynchService;
+import org.andresoviedo.google_drive_ftp_adapter.view.ftp.GFtpServerFactory;
 import org.apache.ftpserver.FtpServerFactory;
 import org.apache.ftpserver.ftplet.FtpException;
 import org.apache.log4j.Logger;

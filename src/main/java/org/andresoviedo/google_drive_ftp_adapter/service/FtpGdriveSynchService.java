@@ -1,9 +1,9 @@
-package org.andresoviedo.apps.gdrive_ftp_adapter.service;
+package org.andresoviedo.google_drive_ftp_adapter.service;
 
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.Cache;
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.GChange;
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.GFile;
-import org.andresoviedo.apps.gdrive_ftp_adapter.model.GoogleDrive;
+import org.andresoviedo.google_drive_ftp_adapter.model.Cache;
+import org.andresoviedo.google_drive_ftp_adapter.model.GChange;
+import org.andresoviedo.google_drive_ftp_adapter.model.GFile;
+import org.andresoviedo.google_drive_ftp_adapter.model.GoogleDrive;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 

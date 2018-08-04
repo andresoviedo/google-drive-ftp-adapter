@@ -86,7 +86,7 @@ Latest Release 1.4.1 - 8 December 2017
 Buid It!
 =======
 
-The project is packaged with Maven. If you want to build it just download the project, compile it and run Java with "org.andresoviedo.apps.gdrive_ftp_adapter.Main"
+The project is packaged with Maven. If you want to build it just download the project, compile it and run Java with "Main"
 
 Run it!
 ======

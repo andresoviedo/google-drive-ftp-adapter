@@ -1,4 +1,4 @@
-package org.andresoviedo.apps.gdrive_ftp_adapter.view.ftp;
+package org.andresoviedo.google_drive_ftp_adapter.view.ftp;
 
 import org.apache.ftpserver.ftplet.Authority;
 import org.apache.ftpserver.ftplet.AuthorizationRequest;
