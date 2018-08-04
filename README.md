@@ -8,10 +8,15 @@ google-drive-ftp-adapter
 News
 ====
 
-**Latest Release** v1.4.1 - 8 December 2017
+**Online service (ftp/ftps)** - 04/08/2018
+- Currently working to put google-drive-ftp-adapter as an online service on the cloud
+- Next step is to add support for ftps (ftp secure)
+- Follow this repository to keep you posted.
+
+**Latest Release v1.4.1** - 8/12/2017
 - [adapter-bundle-jre7-win32.zip](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-win32-jre7-bundle.zip)
 
-**New features**:
+**Latest fixes**:
 - Multiple ftp users (fix #17)
 - Set user rights (fix #15)
 - Bind server address (pull request #16)
