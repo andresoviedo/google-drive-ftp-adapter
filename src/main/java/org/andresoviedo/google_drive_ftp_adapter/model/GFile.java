@@ -1,9 +1,6 @@
 package org.andresoviedo.google_drive_ftp_adapter.model;
 
 import java.io.Serializable;
-import java.net.URL;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -14,43 +11,7 @@ import java.util.Set;
  */
 public class GFile implements Serializable, Cloneable {
 
-    public enum MIME_TYPE {
-
-        GOOGLE_AUDIO("application/vnd.google-apps.audio", "audio"), GOOGLE_DOC("application/vnd.google-apps.document", "Google Docs"), GOOGLE_DRAW(
-                "application/vnd.google-apps.drawing", "Google Drawing"), GOOGLE_FILE("application/vnd.google-apps.file",
-                "Google  Drive file"), GOOGLE_FOLDER("application/vnd.google-apps.folder", "Google  Drive folder"), GOOGLE_FORM(
-                "application/vnd.google-apps.form", "Google  Forms"), GOOGLE_FUSION("application/vnd.google-apps.fusiontable",
-                "Google  Fusion Tables"), GOOGLE_PHOTO("application/vnd.google-apps.photo", "photo"), GOOGLE_SLIDE(
-                "application/vnd.google-apps.presentation", "Google  Slides"), GOOGLE_PPT("application/vnd.google-apps.script",
-                "Google  Apps Scripts"), GOOGLE_SITE("application/vnd.google-apps.sites", "Google  Sites"), GOOGLE_SHEET(
-                "application/vnd.google-apps.spreadsheet", "Google  Sheets"), GOOGLE_UNKNOWN("application/vnd.google-apps.unknown",
-                "unknown"), GOOGLE_VIDEO("application/vnd.google-apps.video", "video");
-
-        private final String value;
-        private final String desc;
-        static Map<String, String> list = new HashMap<String, String>();
-
-        MIME_TYPE(String value, String desc) {
-            this.value = value;
-            this.desc = desc;
-        }
-
-        public String getValue() {
-            return value;
-        }
-
-        public static MIME_TYPE parse(String mimeType) {
-            for (MIME_TYPE a : MIME_TYPE.values()) {
-                if (a.getValue().equals(mimeType)) {
-                    return a;
-                }
-            }
-            return null;
-        }
-    };
-
     private static final long serialVersionUID = 1L;
-
     /**
      * Id of the remote google drive file
      */
@@ -58,11 +19,11 @@ public class GFile implements Serializable, Cloneable {
     /**
      * Version of the remote google drive file
      */
-    private long revision;
+    private String revision;
     /**
      * Remove labels
      */
-    private Set<String> labels;
+    private boolean trashed;
     /**
      * File name
      */
@@ -90,29 +51,21 @@ public class GFile implements Serializable, Cloneable {
      * Set of parent folder this file is in.
      */
     private Set<String> parents;
-
-    private transient java.io.File transferFile = null;
-
-    private transient URL downloadUrl;
-    /**
-     * Last time this file was viewed by the user
-     */
-    private long lastViewedByMeDate;
-
-    /**
-     * Because a file can have multiple parents, this instance could be duplicated. Current parent so, is the link to the selected
-     * container.
-     */
-    private transient GFile currentParent;
-
     private boolean exists;
-
-    public GFile() {
-        this("");
-    }
 
     public GFile(String name) {
         this.name = name;
+    }
+
+    /**
+     * Creates a new local JFS file object.
+     *
+     * @param parents The assigned file producer.
+     * @param name    The relative path of the JFS file starting from the root JFS file.
+     */
+    public GFile(Set<String> parents, String name) {
+        this(name);
+        this.parents = parents;
     }
 
     public Set<String> getParents() {
@@ -123,77 +76,52 @@ public class GFile implements Serializable, Cloneable {
         this.parents = parents;
     }
 
-    /**
-     * Creates a new local JFS file object.
-     *
-     * @param parents
-     *            The assigned file producer.
-     * @param name
-     *            The relative path of the JFS file starting from the root JFS file.
-     */
-    public GFile(Set<String> parents, String name) {
-        this(name);
-        this.parents = parents;
+    public String getId() {
+        return id;
     }
 
     public void setId(String id) {
         this.id = id;
     }
 
-    public String getId() {
-        return id;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public void setRevision(long largestChangeId) {
-        this.revision = largestChangeId;
-    }
-
-    public void setLength(long length) {
-        this.setSize(length);
+    public boolean isDirectory() {
+        return isDirectory;
     }
 
     public void setDirectory(boolean isDirectory) {
         this.isDirectory = isDirectory;
     }
 
-    public boolean isDirectory() {
-        return isDirectory;
-    }
-
-    public String getMd5Checksum() {
+    String getMd5Checksum() {
         return md5Checksum;
     }
 
-    public void setMd5Checksum(String md5Checksum) {
+    void setMd5Checksum(String md5Checksum) {
         this.md5Checksum = md5Checksum;
     }
 
-    public Set<String> getLabels() {
-        return labels;
+    public boolean getTrashed() {
+        return trashed;
     }
 
-    public void setLabels(Set<String> labels) {
-        this.labels = labels;
-    }
-
-    public void setLastModified(long time) {
-        this.lastModified = time;
+    void setTrashed(boolean trashed) {
+        this.trashed = trashed;
     }
 
     public String getName() {
         return name;
     }
 
-    public long getLength() {
-        return getSize();
+    public void setName(String name) {
+        this.name = name;
     }
 
     public long getLastModified() {
         return lastModified;
+    }
+
+    public void setLastModified(long time) {
+        this.lastModified = time;
     }
 
     public String getMimeType() {
@@ -204,62 +132,16 @@ public class GFile implements Serializable, Cloneable {
         this.mimeType = mimeType;
     }
 
-    public long getRevision() {
+    String getRevision() {
         return revision;
     }
 
+    public void setRevision(String revision) {
+        this.revision = revision;
+    }
+
     public String toString() {
-        return getName() + "(" + getId() + ")";
-    }
-
-    /**
-     * @param downloadUrl
-     *            the downloadUrl to set
-     */
-    public void setDownloadUrl(URL downloadUrl) {
-        this.downloadUrl = downloadUrl;
-    }
-
-    public URL getDownloadUrl() {
-        return downloadUrl;
-    }
-
-    public java.io.File getTransferFile() {
-        return transferFile;
-    }
-
-    public void setTransferFile(java.io.File transferFile) {
-        this.transferFile = transferFile;
-    }
-
-    public long getLastViewedByMeDate() {
-        return lastViewedByMeDate;
-    }
-
-    public void setLastViewedByMeDate(long lastViewedByMeDate) {
-        this.lastViewedByMeDate = lastViewedByMeDate;
-    }
-
-    @Override
-    public Object clone() {
-        GFile ret = new GFile(getName());
-        ret.setId(getId());
-        ret.setName(getName());
-        ret.setDirectory(isDirectory());
-        ret.setLength(getLength());
-        ret.setLastModified(getLastModified());
-        ret.setMd5Checksum(getMd5Checksum());
-        ret.setRevision(getRevision());
-        ret.setParents(getParents());
-
-        ret.setMimeType(mimeType);
-        ret.setExists(isExists());
-        ret.setLastViewedByMeDate(getLastViewedByMeDate());
-        return ret;
-    }
-
-    public GFile getCurrentParent() {
-        return currentParent;
+        return "(" + getId() + ")";
     }
 
     public boolean isExists() {
@@ -283,20 +165,33 @@ public class GFile implements Serializable, Cloneable {
     }
 
     public String getOwnerName() {
-        return "uknown";
+        return "unknown";
     }
 
-    public String getDiffs(GFile patchedLocalFile) {
-        StringBuilder ret = new StringBuilder("Diffs: ");
-        if (!patchedLocalFile.getName().equals(getName())) {
-            ret.append("name '").append(patchedLocalFile.getName()).append("'");
+    public enum MIME_TYPE {
+
+        GOOGLE_AUDIO("application/vnd.google-apps.audio", "audio"), GOOGLE_DOC("application/vnd.google-apps.document", "Google Docs"), GOOGLE_DRAW(
+                "application/vnd.google-apps.drawing", "Google Drawing"), GOOGLE_FILE("application/vnd.google-apps.file",
+                "Google  Drive file"), GOOGLE_FOLDER("application/vnd.google-apps.folder", "Google  Drive folder"), GOOGLE_FORM(
+                "application/vnd.google-apps.form", "Google  Forms"), GOOGLE_FUSION("application/vnd.google-apps.fusiontable",
+                "Google  Fusion Tables"), GOOGLE_PHOTO("application/vnd.google-apps.photo", "photo"), GOOGLE_SLIDE(
+                "application/vnd.google-apps.presentation", "Google  Slides"), GOOGLE_PPT("application/vnd.google-apps.script",
+                "Google  Apps Scripts"), GOOGLE_SITE("application/vnd.google-apps.sites", "Google  Sites"), GOOGLE_SHEET(
+                "application/vnd.google-apps.spreadsheet", "Google  Sheets"), GOOGLE_UNKNOWN("application/vnd.google-apps.unknown",
+                "unknown"), GOOGLE_VIDEO("application/vnd.google-apps.video", "video"),
+        MS_EXCEL("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "MS Excel"),
+        MS_WORD("application/vnd.openxmlformats-officedocument.wordprocessingml.document", "MS Word document");
+
+        private final String value;
+        private final String desc;
+
+        MIME_TYPE(String value, String desc) {
+            this.value = value;
+            this.desc = desc;
         }
-        if (patchedLocalFile.getLastModified() != getLastModified()) {
-            ret.append("lastModified '").append(patchedLocalFile.getLastModified()).append("'");
+
+        public String getValue() {
+            return value;
         }
-        if (patchedLocalFile.getLastViewedByMeDate() != getLastViewedByMeDate()) {
-            ret.append("lastViewedByMeDate '").append(patchedLocalFile.getLastViewedByMeDate()).append("'");
-        }
-        return ret.toString();
     }
 }

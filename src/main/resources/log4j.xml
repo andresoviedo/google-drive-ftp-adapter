@@ -3,50 +3,50 @@
 
 <log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/">
 
-	<appender name="console" class="org.apache.log4j.ConsoleAppender">
-		<param name="Target" value="System.out" />
-		<layout class="org.apache.log4j.PatternLayout">
-			<param name="ConversionPattern" value="%d %-5p %-10t %-20c{1} - %m%n" />
-		</layout>
-		<filter class="org.apache.log4j.varia.LevelRangeFilter">
-			<param name="levelMin" value="DEBUG" />
-			<param name="levelMax" value="FATAL" />
-		</filter>
-	</appender>
+    <appender name="console" class="org.apache.log4j.ConsoleAppender">
+        <param name="Target" value="System.out"/>
+        <layout class="org.apache.log4j.PatternLayout">
+            <param name="ConversionPattern" value="%d %-5p %-10t %-20c{1} - %m%n"/>
+        </layout>
+        <filter class="org.apache.log4j.varia.LevelRangeFilter">
+            <param name="levelMin" value="INFO"/>
+            <param name="levelMax" value="FATAL"/>
+        </filter>
+    </appender>
 
-	<appender name="file" class="org.apache.log4j.RollingFileAppender">
-		<param name="file" value="google-drive-ftp-adapter${log4j.fileId}.log" />
-		<param name="MaxFileSize" value="5MB" />
-		<param name="MaxBackupIndex" value="1" />
-		<layout class="org.apache.log4j.PatternLayout">
-			<param name="ConversionPattern" value="%d [%-15t] [%-20C{1}] [%-5p] %m%n" />
-		</layout>
-		<filter class="org.apache.log4j.varia.LevelRangeFilter">
-			<param name="levelMin" value="INFO" />
-			<param name="levelMax" value="FATAL" />
-		</filter>
-	</appender>
+    <appender name="file" class="org.apache.log4j.RollingFileAppender">
+        <param name="file" value="google-drive-ftp-adapter${log4j.fileId}.log"/>
+        <param name="MaxFileSize" value="5MB"/>
+        <param name="MaxBackupIndex" value="1"/>
+        <layout class="org.apache.log4j.PatternLayout">
+            <param name="ConversionPattern" value="%d [%-15t] [%-20C{1}] [%-5p] %m%n"/>
+        </layout>
+        <filter class="org.apache.log4j.varia.LevelRangeFilter">
+            <param name="levelMin" value="INFO"/>
+            <param name="levelMax" value="FATAL"/>
+        </filter>
+    </appender>
 
-	<logger name="org.springframework">
-		<level value="info" />
-	</logger>
+    <logger name="org.springframework">
+        <level value="info"/>
+    </logger>
 
-	<logger name="org.apache.mina">
-		<level value="info" />
-	</logger>
+    <logger name="org.apache.mina">
+        <level value="info"/>
+    </logger>
 
-	<logger name="org.apache.ftpserver">
-		<level value="info" />
-	</logger>
+    <logger name="org.apache.ftpserver">
+        <level value="error"/>
+    </logger>
 
-	<logger name="org.andresoviedo.google_drive_ftp_adapter.service.FtpGdriveSynchService">
-		<level value="info" />
-	</logger>
+    <logger name="org.andresoviedo.google_drive_ftp_adapter.service.FtpGdriveSynchService">
+        <level value="info"/>
+    </logger>
 
-	<root>
-		<priority value="debug" />
-		<appender-ref ref="console" />
-		<appender-ref ref="file" />
-	</root>
+    <root>
+        <priority value="info"/>
+        <appender-ref ref="console"/>
+        <appender-ref ref="file"/>
+    </root>
 
 </log4j:configuration>

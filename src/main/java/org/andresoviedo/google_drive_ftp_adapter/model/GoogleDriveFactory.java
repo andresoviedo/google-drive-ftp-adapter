@@ -7,6 +7,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.HttpTransport;
+import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.util.store.FileDataStoreFactory;
@@ -22,94 +23,97 @@ import java.util.Set;
 
 /**
  * Factory to create instances of {@link GoogleDrive}.
- * 
+ *
  * @author andresoviedo
- * 
  */
 public final class GoogleDriveFactory {
 
-	private static final Log logger = LogFactory.getLog(GoogleDriveFactory.class);
+    private static final Log logger = LogFactory.getLog(GoogleDriveFactory.class);
 
-	/**
-	 * Application name as of Google Drive Service
-	 */
-	private static final String APPLICATION_NAME = "google-drive-ftp-adapter";
+    /**
+     * Application name as of Google Drive Service
+     */
+    private static final String APPLICATION_NAME = "google-drive-ftp-adapter";
+    /**
+     * Global instance of the JSON factory.
+     */
+    private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
+    /**
+     * DataStore to save user authorization
+     */
+    private final FileDataStoreFactory dataStoreFactory;
+    /**
+     * Global instance of the HTTP transport.
+     */
+    private final HttpTransport httpTransport;
 
-	/** Directory to store user credentials. */
-	private final java.io.File DATA_STORE_DIR;
+    private Drive drive;
 
-	/**
-	 * DataStore to save user authorization
-	 */
-	private final FileDataStoreFactory dataStoreFactory;
+    public GoogleDriveFactory(Properties configuration) {
+        /* Directory to store user credentials. */
+        java.io.File DATA_STORE_DIR = new java.io.File("data/google/" + configuration.getProperty("account", "default"));
 
-	/** Global instance of the JSON factory. */
-	private final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
+        try {
+            // initialize the data store factory
+            dataStoreFactory = new FileDataStoreFactory(DATA_STORE_DIR);
+            // initialize the transport
+            httpTransport = GoogleNetHttpTransport.newTrustedTransport();
 
-	/** Global instance of the HTTP transport. */
-	private final HttpTransport httpTransport;
+        } catch (Exception e) {
+            throw new RuntimeException("Error intializing google drive API", e);
+        }
+    }
 
-	private Credential credential;
+    public static Drive build(Credential credential) throws Exception {
+        final NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+        return new Drive.Builder(httpTransport, JSON_FACTORY, credential).setApplicationName(APPLICATION_NAME).build();
+    }
 
-	private Drive drive;
+    public void init() {
+        try {
 
-	public GoogleDriveFactory(Properties configuration) {
-		DATA_STORE_DIR = new java.io.File("data/google/" + configuration.getProperty("account", "default"));
+            // authorization
+            Credential credential = authorize();
 
-		try {
-			// initialize the data store factory
-			dataStoreFactory = new FileDataStoreFactory(DATA_STORE_DIR);
-			// initialize the transport
-			httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-
-		} catch (Exception e) {
-			throw new RuntimeException("Error intializing google drive API",e);
-		}
-	}
-
-	public void init() {
-		try {
-
-			// authorization
-			credential = authorize();
-
-			// set up global Drive instance
-			drive = new Drive.Builder(httpTransport, JSON_FACTORY, credential).setApplicationName(APPLICATION_NAME).build();
+            // set up global Drive instance
+            drive = new Drive.Builder(httpTransport, JSON_FACTORY, credential).setApplicationName(APPLICATION_NAME).build();
 
 
-			logger.info("Google drive webservice client initialized.");
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-	}
+            logger.info("Google drive webservice client initialized.");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-	/** Authorizes the installed application to access user's protected data. */
-	private Credential authorize() throws Exception {
-		// load client secrets
-		GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY,
-				new InputStreamReader(GFile.class.getResourceAsStream("/client_secrets.json")));
-		if (clientSecrets.getDetails().getClientId().startsWith("Enter")
-				|| clientSecrets.getDetails().getClientSecret().startsWith("Enter ")) {
-			System.out.println("Overwrite the src/main/resources/client_secrets.json file with the client secrets file "
-					+ "you downloaded from the Quickstart tool or manually enter your Client ID and Secret "
-					+ "from https://code.google.com/apis/console/?api=drive#project:275751503302 "
-					+ "into src/main/resources/client_secrets.json");
-			System.exit(1);
-		}
-		// set up authorization code flow
-		Set<String> scopes = new HashSet<String>();
-		scopes.add(DriveScopes.DRIVE);
-		scopes.add(DriveScopes.DRIVE_METADATA);
+    /**
+     * Authorizes the installed application to access user's protected data.
+     */
+    private Credential authorize() throws Exception {
+        // load client secrets
+        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY,
+                new InputStreamReader(GFile.class.getResourceAsStream("/client_secrets.json")));
+        if (clientSecrets.getDetails().getClientId().startsWith("Enter")
+                || clientSecrets.getDetails().getClientSecret().startsWith("Enter ")) {
+            System.out.println("Overwrite the src/main/resources/client_secrets.json file with the client secrets file "
+                    + "you downloaded from the Quickstart tool or manually enter your Client ID and Secret "
+                    + "from https://code.google.com/apis/console/?api=drive#project:275751503302 "
+                    + "into src/main/resources/client_secrets.json");
+            System.exit(1);
+        }
+        // set up authorization code flow
+        Set<String> scopes = new HashSet<>();
+        scopes.add(DriveScopes.DRIVE);
+        scopes.add(DriveScopes.DRIVE_METADATA);
 
-		GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(httpTransport, JSON_FACTORY, clientSecrets, scopes)
-				.setDataStoreFactory(dataStoreFactory).build();
-		// authorize
-		return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
-	}
+        GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(httpTransport, JSON_FACTORY, clientSecrets, scopes)
+                .setDataStoreFactory(dataStoreFactory).build();
+        // authorize
+        return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
+    }
 
-	public Drive getDrive(){
-		return drive;
-	}
+    public Drive getDrive() {
+        return drive;
+    }
 
 
 }

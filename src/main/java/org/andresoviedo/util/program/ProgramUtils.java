@@ -11,99 +11,98 @@ import java.util.Scanner;
 
 public final class ProgramUtils {
 
-	private static final Log LOG = LogFactory.getLog(ProgramUtils.class);
+    private static final Log LOG = LogFactory.getLog(ProgramUtils.class);
+    private final File file;
 
-	public static final class RequestsPerSecondController {
+    public ProgramUtils(String executionStatusFilename) {
+        super();
+        file = new File(executionStatusFilename);
+    }
 
-		private final int maxRequestPerSecond;
-		private final long period;
-		private int requestTimes = 0;
-		private long time = 0;
+    private static String getLastStatus(File file) {
+        try {
+            Scanner scanner = new Scanner(file);
+            String time = scanner.next();
+            scanner.close();
+            return time;
+        } catch (FileNotFoundException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
 
-		public RequestsPerSecondController(int maxRequestPerSecond, long period) {
-			this.maxRequestPerSecond = maxRequestPerSecond;
-			this.period = period;
-		}
+    public String lastStatus() {
+        if (file.exists()) {
+            String ret = getLastStatus(file);
+            return ret;
+        }
+        return null;
+    }
 
-		public void start() {
-			reset();
-			LOG.info("Started at " + time);
-		}
+    public void deleteStatus() {
+        if (file.exists()) {
+            file.delete();
+        }
+    }
 
-		public void reset() {
-			time = System.currentTimeMillis();
-			requestTimes = 0;
-		}
+    public void setStatus(String text) {
+        FileOutputStream fileOutputStream = null;
+        try {
+            fileOutputStream = new FileOutputStream(file);
+            fileOutputStream.write(text.getBytes());
 
-		public synchronized void newRequest() {
-			final long newTime = System.currentTimeMillis();
-			final long expiratonTime = time + period;
-			requestTimes++;
-			if (newTime < expiratonTime) {
-				if (requestTimes >= maxRequestPerSecond) {
-					LOG.info("Reached limit! sleeping " + (expiratonTime - newTime) + " millis,,,");
-					try {
-						Thread.sleep(expiratonTime - newTime);
-					} catch (InterruptedException ex) {
-						throw new RuntimeException(ex);
-					}
-					reset();
-				}
-			} else { /* if (newTime >= expiratonTime) { */
-				requestTimes = 0;
-				time = newTime;
-			}
-		}
-	}
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        } finally {
+            if (fileOutputStream != null) {
+                try {
+                    fileOutputStream.close();
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
+        }
+    }
 
-	private final File file;
+    public static final class RequestsPerSecondController {
 
-	public ProgramUtils(String executionStatusFilename) {
-		super();
-		file = new File(executionStatusFilename);
-	}
+        private final int maxRequestPerSecond;
+        private final long period;
+        private int requestTimes = 0;
+        private long time = 0;
 
-	public String lastStatus() {
-		if (file.exists()) {
-			String ret = getLastStatus(file);
-			return ret;
-		}
-		return null;
-	}
+        public RequestsPerSecondController(int maxRequestPerSecond, long period) {
+            this.maxRequestPerSecond = maxRequestPerSecond;
+            this.period = period;
+        }
 
-	public void deleteStatus() {
-		if (file.exists()) {
-			file.delete();
-		}
-	}
+        public void start() {
+            reset();
+            LOG.info("Started at " + time);
+        }
 
-	private static String getLastStatus(File file) {
-		try {
-			Scanner scanner = new Scanner(file);
-			String time = scanner.next();
-			scanner.close();
-			return time;
-		} catch (FileNotFoundException ex) {
-			throw new RuntimeException(ex);
-		}
-	}
+        public void reset() {
+            time = System.currentTimeMillis();
+            requestTimes = 0;
+        }
 
-	public void setStatus(String text) {
-		FileOutputStream fileOutputStream = null;
-		try {
-			fileOutputStream = new FileOutputStream(file);
-			fileOutputStream.write(text.getBytes());
-
-		} catch (Exception ex) {
-			throw new RuntimeException(ex);
-		} finally {
-			if (fileOutputStream != null) {
-				try {
-					fileOutputStream.close();
-				} catch (IOException ex) {
-					throw new RuntimeException(ex);
-				}
-			}
-		}
-	}
+        public synchronized void newRequest() {
+            final long newTime = System.currentTimeMillis();
+            final long expiratonTime = time + period;
+            requestTimes++;
+            if (newTime < expiratonTime) {
+                if (requestTimes >= maxRequestPerSecond) {
+                    LOG.info("Reached limit! sleeping " + (expiratonTime - newTime) + " millis,,,");
+                    try {
+                        Thread.sleep(expiratonTime - newTime);
+                    } catch (InterruptedException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                    reset();
+                }
+            } else { /* if (newTime >= expiratonTime) { */
+                requestTimes = 0;
+                time = newTime;
+            }
+        }
+    }
 }

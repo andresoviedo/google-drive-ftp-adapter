@@ -10,17 +10,19 @@ News
 
 **Online service (ftp/ftps)** - 04/08/2018
 - Currently working to put google-drive-ftp-adapter as an online service on the cloud
-- Next step is to add support for ftps (ftp secure)
 - Follow this repository to keep you posted.
 
-**Latest Release** v1.5.0 - 04/08/2018
-- [adapter-bundle-jre7-win32.zip](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-win32-jre7-bundle.zip)
+**Latest Release** v1.6.0 - 15/08/2018
+- [google-drive-ftp-adapter-jar-with-dependencies.jar](build/google-drive-ftp-adapter-jar-with-dependencies.jar)
 
-**Latest fixes**:
-- Multiple ftp users (fix #17)
-- Set user rights (fix #15)
-- Bind server address (pull request #16)
-- FTP home directory configurable (fix #15)
+**Latest fix**:
+- Google Drive API v3
+- Complete code refactoring & cleaning
+- Upload & Download using streams
+- Moved to Java 8
+- Improved performance
+- Bug fixing
+
 
 About
 =====
@@ -31,18 +33,18 @@ About
 Features
 ========
 
-- Standalone Java application
-- Apache Mina FTP Server as a gateway to your google drive files
+- Standalone Java application (Java 8)
+- Apache Mina FTP Server as a gateway to your google drive files (Drive API v3)
 - Internal SQLite Cache for fast access to data
 - Google Drive cache synchronisation by polling every 10 seconds
 - Users permissions
 - Supported FTP commands:
-  - List folders, subfolders and files
-  - Renaming files
-  - Make new directories
-  - Upload new files (includes gdoc conversion)
-  - Download files to local PC (includes gdoc and gsheet conversion)
-  - Touch remote timestamps
+  - List folders and files
+  - Rename files
+  - Create or delete directories
+  - Upload new files (includes google docs conversion to and from)
+  - Download files to local PC (includes google docs conversion to and from)
+  - Edit remote timestamps
   - Trash files or folders
 
 **Ideas for the future**:
@@ -69,19 +71,14 @@ Notes
   But don't worry because this is supported! These files will appear with chars encoded to _ (underscore) and an ID
   to keep track of the file. 
 
-Source Code
-===========
-
-[GitHub](https://github.com/andresoviedo/google-drive-ftp-adapter)
-
-
 Downloads
 =========
 
-Latest Release 1.5.8 - 04/08/2018
-- Option 1 - /¡\ Java Required          : [jar-with-dependencies.jar](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-jar-with-dependencies.jar)
-- Option 2 - /¡\ Java Required          : [adapter-bundle.zip](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-bundle.zip)
-- Option 3 - Java for Windows included  : [adapter-bundle-jre7-win32.zip](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-win32-jre7-bundle.zip)
+Latest Release 1.6.0 - 15/08/2018
+
+- /¡\ Java 8 Required          : [jar-with-dependencies.jar](build/google-drive-ftp-adapter-jar-with-dependencies.jar)
+
+Download Java 8 from http://www.oracle.com/technetwork/java/javase/downloads/jre8-downloads-2133155.html
 
 
 Buid It!
@@ -99,16 +96,11 @@ Run it!
 
 - Install java 8. Then double click on jar-with-dependencies.jar or execute the following command in the terminal:
 
-    java -jar google-drive-ftp-adapter-jar-with-dependencies.jar
+    java -jar target/google-drive-ftp-adapter-jar-with-dependencies.jar
 
-    
-- If you don't have Java installed and you are in Windows:
-  - Download from [here](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/build/google-drive-ftp-adapter-win32-jre7-bundle.zip)
-  - Unzip it
-  - Execute windows-install-java.cmd
-  - Execute start.cmd
 - Once the application is started, Google with request authorization through your browser to allow Google Drive FTP access to your data. Click "OK". 
 	
+
 Test it!
 ========
 
@@ -136,6 +128,7 @@ Ftp example:
     -rw-------   0 uknown no_group      1936326 Dec 21  2014 avatar2.jpg
     226 Closing data connection
     $ ftp>
+
 
 Application Configuration
 =========================
@@ -269,6 +262,7 @@ Contact Information
 
 [Contact](http://www.andresoviedo.org)
 
+
 Donations
 =========
 
@@ -276,11 +270,20 @@ If you like this project, please consider buying me a beer :)
 
 [<img src="https://www.paypalobjects.com/webstatic/en_US/i/btn/png/btn_donate_92x26.png">](https://www.paypal.me/andresoviedo)
 
+
 Change Log
 ==========
 
 (f) fixed, (i) improved, (n) new feature
 
+- v1.6.0 (15/08/2018)
+  - Google Drive API v3
+  - Complete code refactoring & cleaning
+  - Upload & Download using streams
+  - Moved to Java 8
+  - Improved performance
+  - Bug fixing
+  - File log removed
 - v1.5.0 (04/08/2018)
   - (i) Code refactoring. Decoupled components
 - v1.4.1 (08/12/2017)

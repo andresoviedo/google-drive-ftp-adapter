@@ -1,40 +1,42 @@
 package org.andresoviedo.google_drive_ftp_adapter.model;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
-import com.google.api.client.http.FileContent;
-import com.google.api.client.http.GenericUrl;
-import com.google.api.client.http.HttpResponse;
+import com.google.api.client.http.AbstractInputStreamContent;
+import com.google.api.client.http.InputStreamContent;
 import com.google.api.client.util.DateTime;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.Drive.Changes;
 import com.google.api.services.drive.Drive.Files;
-import com.google.api.services.drive.model.*;
+import com.google.api.services.drive.DriveRequest;
+import com.google.api.services.drive.model.Change;
+import com.google.api.services.drive.model.ChangeList;
+import com.google.api.services.drive.model.File;
+import com.google.api.services.drive.model.FileList;
 import org.andresoviedo.util.program.ProgramUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.MalformedURLException;
-import java.net.URL;
+import java.io.*;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 /**
  * Represents the google drive. So it has operations like listing files or making directories.
  *
  * @author andresoviedo
- *
  */
 public final class GoogleDrive {
 
-    private static final Log logger = LogFactory.getLog(GoogleDriveFactory.class);
+    private static final Log logger = LogFactory.getLog(GoogleDrive.class);
 
     /**
      * The google drive fixes the limit to 1000request/100second/user. We put 5 so
      * we don't reach the limits
      */
     private static final int MAX_REQUESTS_PER_SECOND = 5;
+    private static final String REQUEST_FILE_FIELDS = "id, name, size, mimeType, modifiedTime, md5Checksum, trashed, parents";
 
     // restrict to 100/request per second (the rate limit is 100/second/user)
     private final ProgramUtils.RequestsPerSecondController bandwidthController = new ProgramUtils.RequestsPerSecondController(
@@ -42,17 +44,20 @@ public final class GoogleDrive {
 
     private final Drive drive;
 
-    // TODO: make this package protected
-    public GoogleDrive(Drive drive){
+    private final String ROOT_FOLDER_ID;
+
+    public GoogleDrive(Drive drive) {
         this.drive = drive;
         bandwidthController.start();
+
+        ROOT_FOLDER_ID = getFile("root").getId();
     }
 
-    public long getLargestChangeId(long localLargestChangeId) {
-        return getLargestChangeIdImpl(localLargestChangeId, 3);
+    public String getStartRevision() {
+        return getStartRevision(3);
     }
 
-    public List<GChange> getAllChanges(Long startChangeId) {
+    public List<GChange> getAllChanges(String startChangeId) {
         return retrieveAllChangesImpl(startChangeId, 3);
     }
 
@@ -67,7 +72,8 @@ public final class GoogleDrive {
             List<GFile> childIds = new ArrayList<>();
 
             // Request to get list of files from google
-            Files.List request = drive.files().list();
+            Files.List request = drive.files().list()
+                    .setFields("nextPageToken, files(" + REQUEST_FILE_FIELDS + ")");
             request.setQ("trashed = false and '" + id + "' in parents");
 
             do {
@@ -79,7 +85,7 @@ public final class GoogleDrive {
                 bandwidthController.newRequest();
                 FileList files = request.execute();
 
-                for (File file : files.getItems()){
+                for (File file : files.getFiles()) {
                     childIds.add(create(file));
                 }
                 request.setPageToken(files.getNextPageToken());
@@ -88,7 +94,7 @@ public final class GoogleDrive {
             return childIds;
         } catch (GoogleJsonResponseException e) {
             if (e.getStatusCode() == 404) {
-                // TODO: y si nos borran la última página pasa por aquí?
+                // last page unavailable?
                 return null;
             }
             throw new RuntimeException("Error while getting list of files", e);
@@ -97,9 +103,9 @@ public final class GoogleDrive {
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e1) {
-                    throw new RuntimeException("Error. Process interrupted while getting list of files",e1);
+                    throw new RuntimeException("Error. Process interrupted while getting list of files", e1);
                 }
-                logger.info("retrying getting list of files for '"+id+"'...");
+                logger.warn("retrying getting list of files for '" + id + "'...");
                 return listImpl(id, --retry);
             }
             throw new RuntimeException(e);
@@ -113,7 +119,9 @@ public final class GoogleDrive {
      * @return file or <code>null</code> if it doesn't exists
      */
     public GFile getFile(String fileId) {
-        return create(getFileImpl(fileId, 3));
+        File fileImpl = getFileImpl(fileId, 3);
+        if (fileImpl == null) return null;
+        return create(fileImpl);
     }
 
     private File getFileImpl(String fileId, int retry) {
@@ -124,9 +132,10 @@ public final class GoogleDrive {
             bandwidthController.newRequest();
 
             // get file from google
-            File file = drive.files().get(fileId).execute();
+            File file = drive.files().get(fileId)
+                    .setFields(REQUEST_FILE_FIELDS).execute();
 
-            logger.trace("getFile(" + fileId + ") = " + file.getTitle());
+            logger.trace("getFile(" + fileId + ") = " + file.getName());
 
             return file;
         } catch (GoogleJsonResponseException e) {
@@ -141,7 +150,7 @@ public final class GoogleDrive {
                 } catch (InterruptedException e1) {
                     throw new RuntimeException(e1);
                 }
-                logger.warn("Getting file data failed. Retrying... '"+fileId);
+                logger.warn("Getting file data failed. Retrying... '" + fileId);
                 return getFileImpl(fileId, --retry);
             }
             throw new RuntimeException(e);
@@ -151,31 +160,39 @@ public final class GoogleDrive {
     /**
      * Download a file's content.
      *
-     * @param gFile
-     *            file to download from google
+     * @param gFile file to download from google
      * @return File containing the file's content if successful, {@code null} otherwise.
      */
-    // TODO: retry
+    // TODO: retry?
     public InputStream downloadFile(GFile gFile) {
-        logger.info("Downloading file '" + gFile.getName() + "'...");
+        logger.info("Downloading file '" + gFile.getId() + "'...");
 
         try {
             // refresh file because download links may change
-            GFile refreshedFile = getFile(gFile.getId());
-            if (refreshedFile == null) {
-                logger.error("File doesn't exists '" + gFile.getName());
+            File file = getFileImpl(gFile.getId(), 3);
+            if (file == null) {
+                logger.error("File doesn't exists '" + gFile.getId());
                 return null;
             }
-            if (refreshedFile.getDownloadUrl() == null) {
-                logger.error("No download url for file '" + gFile.getName());
+            if (GFile.MIME_TYPE.GOOGLE_FOLDER.getValue().equals(file.getMimeType())) {
+                logger.error("File is a directory '" + gFile.getId());
                 return null;
+            }
+            if (GFile.MIME_TYPE.GOOGLE_SHEET.getValue().equals(file.getMimeType())) {
+                logger.info("Download file as sheet... '" + gFile.getId());
+                return drive.files().export(file.getId(),
+                        GFile.MIME_TYPE.MS_EXCEL.getValue()).executeMediaAsInputStream();
+            }
+            if (GFile.MIME_TYPE.GOOGLE_DOC.getValue().equals(file.getMimeType())) {
+                logger.info("Download file as doc... '" + gFile.getId());
+                return drive.files().export(file.getId(),
+                        GFile.MIME_TYPE.MS_WORD.getValue()).executeMediaAsInputStream();
             }
 
-            bandwidthController.newRequest();
-            HttpResponse resp = drive.getRequestFactory().buildGetRequest(new GenericUrl(refreshedFile.getDownloadUrl())).execute();
-            return resp.getContent();
+            logger.info("Download file... '" + gFile.getId());
+            return drive.files().get(gFile.getId()).executeMediaAsInputStream();
         } catch (Exception ex) {
-            throw new RuntimeException("Error downloading file " + gFile.getName(),ex);
+            throw new RuntimeException("Error downloading file " + gFile.getId(), ex);
         }
     }
 
@@ -188,85 +205,20 @@ public final class GoogleDrive {
      */
     public String mkdir(String parentId, String filename) {
         GFile gFile = new GFile(Collections.singleton(parentId), filename);
-        gFile.setDirectory(true);
-        return uploadFile(gFile, 3);
+        return mkdir_impl(gFile, 3);
     }
 
-    /**
-     * Upload file to google drive with 3 retries
-     *
-     * @param gFile
-     *            file to update/create.
-     * @return id of the new file or {@code null} if any problem occured.
-     */
-    public String uploadFile(GFile gFile) {
-        return uploadFile(gFile, 3);
-    }
-
-    // TODO: upload using InputStream. How to detect content type?
-    private String uploadFile(GFile gFile, int retry) {
+    private String mkdir_impl(GFile gFile, int retry) {
         try {
-            File file;
-            FileContent mediaContent = null;
-            if (!gFile.isDirectory() && gFile.getTransferFile() != null) {
-                logger.info("Uploading file '" + gFile.getName() + "'...");
-                String type = java.nio.file.Files.probeContentType(gFile.getTransferFile().toPath());
-                logger.info("Detected content type '" + type);
-                mediaContent = new FileContent(type, gFile.getTransferFile());
-            }
-            if (!gFile.isExists()) {
-                // New file
-                logger.info("Creating new file '" + gFile.getName() + "'...");
-                file = new File();
-                if (gFile.isDirectory()) {
-                    file.setMimeType("application/vnd.google-apps.folder");
-                }
-                file.setTitle(gFile.getName());
-                file.setModifiedDate(new DateTime(gFile.getLastModified() != 0 ? gFile.getLastModified() : System.currentTimeMillis()));
-
-                List<ParentReference> newParents = new ArrayList<>(1);
-                if (gFile.getParents() != null) {
-                    for (String parent : gFile.getParents()) {
-                        newParents.add(new ParentReference().setId(parent));
-                    }
-                } else {
-                    newParents = Collections.singletonList(new ParentReference().setId(gFile.getCurrentParent().getId()));
-                }
-                file.setParents(newParents);
-
-                if (mediaContent == null) {
-                    // control we are not exceeding number of requests/second
-                    bandwidthController.newRequest();
-                    file = drive.files().insert(file).execute();
-                } else {
-                    // control we are not exceeding number of requests/second
-                    bandwidthController.newRequest();
-                    file = drive.files().insert(file, mediaContent).execute();
-                }
-                logger.info("File created succesfully " + file.getTitle() + " (" + file.getId() + ")");
-            } else {
-                // Update file content
-                logger.info("Updating existing file '" + gFile.getName() + "'...");
-                final Drive.Files.Update updateRequest = drive.files().update(gFile.getId(), null, mediaContent);
-                GFile remoteFile = getFile(gFile.getId());
-                if (remoteFile != null) {
-                    final GFile.MIME_TYPE mimeType = GFile.MIME_TYPE.parse(remoteFile.getMimeType());
-                    if (mimeType != null) {
-                        switch (mimeType) {
-                            case GOOGLE_DOC:
-                            case GOOGLE_SHEET:
-                                logger.info("Converting file to google docs format because it was already in google docs format");
-                                updateRequest.setConvert(true);
-                                break;
-                            default:
-                                break;
-                        }
-                    }
-                }
-                bandwidthController.newRequest();
-                file = updateRequest.execute();
-                logger.info("File updated succesfully " + file.getTitle() + " (" + file.getId() + ")");
-            }
+            // New file
+            logger.info("Creating new directory...");
+            File file = new File();
+            file.setMimeType("application/vnd.google-apps.folder");
+            file.setName(gFile.getName());
+            file.setModifiedTime(new DateTime(System.currentTimeMillis()));
+            file.setParents(new ArrayList<>(gFile.getParents()));
+            file = drive.files().create(file).execute();
+            logger.info("Directory created successfully: " + file.getId());
             return file.getId();
         } catch (IOException e) {
             if (retry > 0) {
@@ -275,30 +227,21 @@ public final class GoogleDrive {
                 } catch (InterruptedException e1) {
                     throw new RuntimeException(e1);
                 }
-                logger.warn("Uploading file failed. Retrying... '" + gFile.getName());
-                return uploadFile(gFile, --retry);
+                logger.warn("Uploading file failed. Retrying... '" + gFile.getId());
+                return mkdir_impl(gFile, --retry);
             }
-            throw new RuntimeException("Exception uploading file " + gFile.getName(), e);
+            throw new RuntimeException("Exception uploading file " + gFile.getId(), e);
         }
     }
 
-    private long getLargestChangeIdImpl(long startLargestChangeId, int retry) {
-        long ret;
+    private String getStartRevision(int retry) {
         try {
-            logger.debug("Getting latest changes... "+startLargestChangeId);
-            Changes.List request = drive.changes().list();
-
-            if (startLargestChangeId > 0) {
-                request.setStartChangeId(startLargestChangeId);
-            }
-            request.setMaxResults(1);
-            request.setFields("largestChangeId");
 
             // control we are not exceeding number of requests/second
             bandwidthController.newRequest();
-            ChangeList changes = request.execute();
+            logger.debug("Getting drive status...");
+            return drive.changes().getStartPageToken().execute().getStartPageToken();
 
-            ret = changes.getLargestChangeId();
         } catch (IOException e) {
             if (retry > 0) {
                 try {
@@ -307,46 +250,38 @@ public final class GoogleDrive {
                     throw new RuntimeException(e1);
                 }
                 logger.warn("Error getting latest changes. Retrying...");
-                return getLargestChangeIdImpl(startLargestChangeId, --retry);
+                return getStartRevision(--retry);
             }
-            throw new RuntimeException("Error getting latest changes",e);
+            throw new RuntimeException("Error getting latest changes", e);
         }
-        return ret;
     }
 
     /**
      * Retrieve a list of Change resources.
      *
-     * @param startChangeId
-     *            ID of the change to start retrieving subsequent changes from or {@code null}.
-     * @param retry number of retries
+     * @param startChangeId ID of the change to start retrieving subsequent changes from or {@code null}.
+     * @param retry         number of retries
      * @return List of Change resources.
      */
-    private List<GChange> retrieveAllChangesImpl(Long startChangeId, int retry) {
+    private List<GChange> retrieveAllChangesImpl(String startChangeId, int retry) {
         try {
-            logger.debug("Getting latest changes... "+startChangeId);
+            logger.debug("Getting latest changes... " + startChangeId);
             List<Change> result = new ArrayList<>();
-            Changes.List request = drive.changes().list();
-            request.setIncludeSubscribed(false);
-            request.setIncludeDeleted(true);
-            if (startChangeId != null && startChangeId > 0) {
-                request.setStartChangeId(startChangeId);
-            }
+
+            Changes.List request = drive.changes().list(startChangeId)
+                    .setFields("nextPageToken, newStartPageToken, changes(removed, fileId, file(" + REQUEST_FILE_FIELDS + "))");
+            request.setRestrictToMyDrive(true);
+            request.setIncludeRemoved(true);
+            ChangeList changes;
             do {
                 // control we are not exceeding number of requests/second
                 bandwidthController.newRequest();
-                ChangeList changes = request.execute();
-
-                result.addAll(changes.getItems());
+                changes = request.execute();
+                result.addAll(changes.getChanges());
                 request.setPageToken(changes.getNextPageToken());
             } while (request.getPageToken() != null && request.getPageToken().length() > 0);
-
-            return toGChanges(result);
-            // } catch (GoogleJsonResponseException e) {
-            // if (e.getStatusCode() == 404) {
-            // return null;
-            // }
-            // throw new RuntimeException(e);
+            final String lastPageToken = changes.getNewStartPageToken();
+            return toGChanges(lastPageToken, result);
         } catch (Exception e) {
             if (retry > 0) {
                 try {
@@ -357,19 +292,15 @@ public final class GoogleDrive {
                 logger.warn("Error getting latest changes. Retrying...");
                 return retrieveAllChangesImpl(startChangeId, --retry);
             }
-            throw new RuntimeException("Error getting latest changes",e);
+            throw new RuntimeException("Error getting latest changes", e);
         }
     }
 
-    private List<GChange> toGChanges(List<Change> changes){
+    private List<GChange> toGChanges(String lastPageToken, List<Change> changes) {
         List<GChange> ret = new ArrayList<>(changes.size());
-        for (Change change : changes){
-            GFile newLocalFile = create(change.getFile());
-            if (!newLocalFile.isDirectory()) {
-                // if it's a directory, don't set revision in order to update it later
-                newLocalFile.setRevision(change.getId());
-            }
-            ret.add(new GChange(change.getId(), change.getFileId(), change.getDeleted(), newLocalFile));
+        for (Change change : changes) {
+            GFile newLocalFile = change.getRemoved() ? null : create(change.getFile());
+            ret.add(new GChange(lastPageToken, change.getFileId(), change.getRemoved(), newLocalFile));
         }
         return ret;
     }
@@ -377,30 +308,27 @@ public final class GoogleDrive {
     /**
      * Touches the file, changing the name or date modified
      *
-     * @param fileId the file id to patch
-     * @param newName the new file name
-     * @param  newLastModified the new last modified date
+     * @param fileId          the file id to patch
+     * @param newName         the new file name
+     * @param newLastModified the new last modified date
      * @return the patched file
      */
-    public GFile touchFile(String fileId, String newName, long newLastModified) {
+    public GFile patchFile(String fileId, String newName, long newLastModified) {
         File patch = new File();
-        patch.setId(fileId);
         if (newName != null) {
-            patch.setTitle(newName);
+            patch.setName(newName);
         }
         if (newLastModified > 0) {
-            patch.setModifiedDate(new DateTime(newLastModified));
+            patch.setModifiedTime(new DateTime(newLastModified));
         }
-        File file = this.touchFile(fileId, patch, 3);
-        return create(file);
+        return create(patchFile(fileId, patch, 3));
     }
 
-    private File touchFile(String fileId, File patch, int retry) {
+    private File patchFile(String fileId, File patch, int retry) {
         try {
-            Files.Patch patchRequest = drive.files().patch(fileId, patch);
-            if (patch.getModifiedDate() != null) {
-                patchRequest.setSetModifiedDate(true);
-            }
+            Files.Update patchRequest = drive.files().update(fileId, patch)
+                    .setFields(REQUEST_FILE_FIELDS);
+
             // control we are not exceeding number of requests/second
             bandwidthController.newRequest();
             return patchRequest.execute();
@@ -411,87 +339,110 @@ public final class GoogleDrive {
                 } catch (InterruptedException e1) {
                     throw new RuntimeException(e1);
                 }
-                logger.warn("Error touching file. Retrying...");
-                touchFile(fileId, patch, --retry);
+                logger.warn("Error updating file. Retrying...");
+                patchFile(fileId, patch, --retry);
             }
-            throw new RuntimeException("Error touching file "+fileId,e);
+            throw new RuntimeException("Error updating file " + fileId, e);
         }
 
     }
 
-    public File trashFile(String fileId, int retry) {
-        try {
-            logger.info("Trashing file... " + fileId);
-            // control we are not exceeding number of requests/second
-            bandwidthController.newRequest();
-            return drive.files().trash(fileId).execute();
-        } catch (IOException e) {
-            if (retry > 0) {
-                logger.warn("Error trashing file. Retrying...");
-                return trashFile(fileId, --retry);
-            }
-            throw new RuntimeException("Error trashing file "+fileId,e);
-        }
+    public File trashFile(String fileId) {
+        File patch = new File();
+        patch.setTrashed(true);
+        return patchFile(fileId, patch, 3);
     }
 
-    private static GFile create(File file) {
-        GFile newFile = new GFile(file.getTitle() != null ? file.getTitle() : file.getOriginalFilename());
+    private GFile create(File file) {
+        GFile newFile = new GFile(file.getName() != null ? file.getName() : file.getOriginalFilename());
         newFile.setId(file.getId());
-        newFile.setLastModified(file.getModifiedDate() != null ? file.getModifiedDate().getValue() : 0);
-        newFile.setLength(file.getFileSize() == null ? 0 : file.getFileSize());
+        newFile.setLastModified(file.getModifiedTime() != null ? file.getModifiedTime().getValue() : 0);
         newFile.setDirectory(GFile.MIME_TYPE.GOOGLE_FOLDER.getValue().equals(file.getMimeType()));
+        newFile.setSize(file.getSize() != null ? file.getSize() : 0); // null for directories
+        newFile.setMimeType(file.getMimeType());
         newFile.setMd5Checksum(file.getMd5Checksum());
-        newFile.setParents(new HashSet<String>());
-        for (ParentReference ref : file.getParents()) {
-            if (ref.getIsRoot()) {
-                newFile.getParents().add("root");
-            } else {
-                newFile.getParents().add(ref.getId());
+        if (file.getParents() != null) {
+            Set<String> newParents = new HashSet<>();
+            for (String newParent : file.getParents()) {
+                newParents.add(newParent.equals(ROOT_FOLDER_ID) ? "root" : newParent);
             }
-        }
-        if (file.getLabels().getTrashed()) {
-            newFile.setLabels(Collections.singleton("trashed"));
+            newFile.setParents(newParents);
         } else {
-            newFile.setLabels(Collections.<String>emptySet());
+            // does this happen?
+            newFile.setParents(Collections.singleton("root"));
         }
-        if (file.getLastViewedByMeDate() != null) {
-            newFile.setLastViewedByMeDate(file.getLastViewedByMeDate().getValue());
-        }
-        Set<String> parents = new HashSet<>();
-        for (ParentReference parentReference : file.getParents()) {
-            if (parentReference.getIsRoot()) {
-                parents.add("root");
-            } else {
-                parents.add(parentReference.getId());
-            }
-        }
-        newFile.setParents(parents);
-        if (!newFile.isDirectory()) {
-            try {
-                if (file.getDownloadUrl() != null && file.getDownloadUrl().length() > 0) {
-                    newFile.setDownloadUrl(new URL(file.getDownloadUrl()));
-                }
-                GFile.MIME_TYPE mimeType = GFile.MIME_TYPE.parse(file.getMimeType());
-                if (mimeType != null) {
-                    switch (mimeType) {
-                        case GOOGLE_SHEET:
-                            newFile.setDownloadUrl(new URL(file.getExportLinks().get(
-                                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")));
-                            break;
-                        case GOOGLE_DOC:
-                            newFile.setDownloadUrl(new URL(file.getExportLinks().get(
-                                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document")));
-                            break;
-                    }
-                }
-                if (newFile.getDownloadUrl() == null) {
-                    logger.error("Error. Download URL not available '" + newFile.getName() + "'");
-                }
-            } catch (MalformedURLException e) {
-                // this should never happen
-                throw new RuntimeException("Error getting download url", e);
-            }
-        }
+        newFile.setTrashed(file.getTrashed() != null && file.getTrashed());
         return newFile;
+    }
+
+    public OutputStreamRequest getOutputStream(final GFile gFile) {
+        try {
+            logger.info("Uploading file stream...");
+
+            final PipedOutputStream pipedOutputStream = new PipedOutputStream();
+            final PipedInputStream pipedInputStream = new PipedInputStream(pipedOutputStream);
+
+            // TODO: implement file update
+            File file = new File();
+            file.setModifiedTime(new DateTime(gFile.getLastModified() != 0 ? gFile.getLastModified() : System.currentTimeMillis()));
+            file.setName(gFile.getName());
+
+            AbstractInputStreamContent mediaContent = new InputStreamContent(gFile.getMimeType(), pipedInputStream);
+
+            final DriveRequest uploadRequest;
+            if (!gFile.isExists()) {
+                file.setParents(new ArrayList<>(gFile.getParents()));
+                uploadRequest = drive.files().create(file, mediaContent);
+            } else {
+                if (gFile.getParents() == null || gFile.getParents().isEmpty()) {
+                    throw new IllegalArgumentException("Error. file parents can't be null nor empty");
+                }
+                uploadRequest = drive.files().update(gFile.getId(), file, mediaContent);
+                StringBuilder parents = new StringBuilder();
+                gFile.getParents().forEach((p) -> parents.append(p).append(","));
+                ((Files.Update) uploadRequest).setAddParents(parents.toString());
+            }
+            uploadRequest.setFields(REQUEST_FILE_FIELDS);
+
+            Supplier<GFile> uploadTask = () -> {
+                try {
+                    bandwidthController.newRequest();
+
+                    logger.info("Uploading file stream now...");
+                    final GFile uploadedFile = create((File) uploadRequest.execute());
+
+                    logger.info("File uploaded successfully");
+                    return uploadedFile;
+                } catch (IOException e) {
+                    logger.error("Error uploading file", e);
+                    throw new RuntimeException("Error uploading file", e);
+                }
+            };
+
+            // upload...
+            //final CompletableFuture<File> uploadSubmit = executor.submit(uploadTask);
+            return new OutputStreamRequest(pipedOutputStream, CompletableFuture.supplyAsync(uploadTask));
+        } catch (IOException e) {
+            logger.error("Error creating output stream", e);
+            throw new RuntimeException("Error creating output stream", e);
+        }
+    }
+
+    public static class OutputStreamRequest {
+        private final OutputStream outputStream;
+        private final CompletableFuture<GFile> futureGFile;
+
+        OutputStreamRequest(OutputStream outputStream, CompletableFuture<GFile> futureGFile) {
+            this.outputStream = outputStream;
+            this.futureGFile = futureGFile;
+        }
+
+        public OutputStream getOutputStream() {
+            return outputStream;
+        }
+
+        public CompletableFuture<GFile> getFutureGFile() {
+            return futureGFile;
+        }
     }
 }

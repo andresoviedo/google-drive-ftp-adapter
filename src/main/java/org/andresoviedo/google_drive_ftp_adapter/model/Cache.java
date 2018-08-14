@@ -3,34 +3,35 @@ package org.andresoviedo.google_drive_ftp_adapter.model;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
 
 import java.util.List;
+import java.util.Set;
 
 public interface Cache {
 
-	public abstract GFile getFile(String id);
+    GFile getFile(String id);
 
-	public abstract List<GFile> getFiles(String folderId);
+    List<GFile> getFiles(String folderId);
 
-	/**
-	 * TODO: is it correct to throw that data exception?
-	 * 
-	 * @param parentId
-	 * @param filename
-	 * @return
-	 * @throws IncorrectResultSizeDataAccessException
-	 *             if there is more than 1 file with the same name in the specified folder
-	 */
-	GFile getFileByName(String parentId, String filename) throws IncorrectResultSizeDataAccessException;
+    /**
+     * TODO: is it correct to throw that data exception?
+     *
+     * @param parentId parent folder id
+     * @param filename filename
+     * @return the file if found or null otherwise
+     * @throws IncorrectResultSizeDataAccessException if there is more than 1 file with the same name in the specified folder
+     */
+    GFile getFileByName(String parentId, String filename) throws IncorrectResultSizeDataAccessException;
 
-	void addOrUpdateFile(GFile rootFile);
+    int addOrUpdateFile(GFile rootFile);
 
-	boolean updateFile(GFile file);
+    int deleteFile(String id);
 
-	int deleteFile(String id);
+    String getRevision();
 
-	long getRevision();
+    void setRevision(String revision);
 
-	List<String> getAllFolderByRevision(long i);
+    List<String> getAllFoldersWithoutRevision();
 
-	void updateChilds(GFile file, List<GFile> newChilds);
+    void updateChilds(GFile file, List<GFile> newChilds);
 
+    Set<String> getParents(String id);
 }

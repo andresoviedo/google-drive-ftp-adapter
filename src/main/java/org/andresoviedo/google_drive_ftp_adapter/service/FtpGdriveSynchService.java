@@ -15,297 +15,227 @@ import java.util.concurrent.Future;
 
 /**
  * Cache synchronization service (by polling).
- * 
+ *
  * @author Andres Oviedo
- * 
  */
 public final class FtpGdriveSynchService {
 
-	private static final Log LOG = LogFactory.getLog(FtpGdriveSynchService.class);
+    private static final Log LOG = LogFactory.getLog(FtpGdriveSynchService.class);
 
-	private GoogleDrive googleDrive;
+    private GoogleDrive googleDrive;
 
-	private Cache cache;
+    private Cache cache;
 
-	private ExecutorService executor;
+    private ExecutorService executor;
 
-	private Timer timer;
+    private Timer timer;
 
-	private TimerTask synchPeriodicTask;
+    public FtpGdriveSynchService(Cache cache, GoogleDrive googleDrive) {
+        this.googleDrive = googleDrive;
+        this.cache = cache;
+        this.executor = Executors.newFixedThreadPool(4);
+        this.timer = new Timer(true);
+        init();
+    }
 
-	public FtpGdriveSynchService(Properties configuration, Cache cache,  GoogleDrive googleDrive) {
-		this.googleDrive = googleDrive;
-		this.cache = cache;
-		this.executor = Executors.newFixedThreadPool(4);
-		this.timer = new Timer(true);
-		init();
-	}
+    private void init() {
+        GFile rootFile = cache.getFile("root");
+        if (rootFile == null) {
+            rootFile = new GFile("");
+            rootFile.setId("root");
+            rootFile.setDirectory(true);
+            rootFile.setParents(Collections.emptySet());
+            cache.addOrUpdateFile(rootFile);
+        }
+    }
 
-	private void init() {
-		GFile rootFile = cache.getFile("root");
-		if (rootFile == null) {
-			rootFile = new GFile("");
-			rootFile.setId("root");
-			rootFile.setDirectory(true);
-			rootFile.setParents(new HashSet<String>());
-			cache.addOrUpdateFile(rootFile);
-		}
-	}
+    /**
+     * Start synchronization local database vs remote google drive
+     */
+    public void start() {
+        timer.schedule(createSyncChangesTask(), 0, 10000);
+    }
 
+    public void updateFolderNow(String fileId) {
+        synchFolder(fileId);
+    }
 
-	/**
-	 * Arranca la sincronización de la base de datos local con la de google
-	 */
-	public void start() {
-		synchPeriodicTask = createSynchChangesTask();
-		timer.schedule(synchPeriodicTask, 0, 10000);
-	}
+    public void stop() {
+        executor.shutdownNow();
+    }
 
-	public void updateNow(String fileId) {
-		synch(fileId);
-	}
+    private TimerTask createSyncChangesTask() {
+        return new TimerTask() {
 
-	public void updateNow(GFile updatedFile) {
-		updatedFile.setRevision(cache.getRevision());
-		cache.addOrUpdateFile(updatedFile);
-	}
-	
-	public void updateFolderNow(String fileId) {
-		synchFolder(fileId);
-	}
+            @Override
+            public void run() {
+                try {
+                    // check google drive changes
+                    checkForRemoteChanges();
 
-	public void stop() {
-		executor.shutdownNow();
-	}
+                    // sync pending folders
+                    syncPendingFolders();
+                } catch (Exception e) {
+                    LOG.error(e.getMessage(), e);
+                }
+            }
 
-	private TimerTask createSynchChangesTask() {
-		return new TimerTask() {
+            private void checkForRemoteChanges() {
 
-			@Override
-			public void run() {
-				try {
-					// revisar lista de cambios de google
-					checkForRemoteChanges();
+                String revision = cache.getRevision();
+                LOG.debug("Local revision: " + revision);
+                if (revision == null) {
+                    revision = googleDrive.getStartRevision();
+                    cache.setRevision(revision);
+                    LOG.debug("New revision: " + revision);
+                }
 
-					synchPendingFolders();
-				} catch (Exception e) {
-					LOG.error(e.getMessage(), e);
-				}
-			}
+                List<GChange> googleChanges;
+                while ((googleChanges = googleDrive.getAllChanges(revision)).size() > 0) {
 
-			private void checkForRemoteChanges() {
+                    LOG.info("Remote changes: " + googleChanges.size());
 
-				long largestChangeId = cache.getRevision();
-				LOG.debug("Largest changeId found in local database " + largestChangeId);
-				if (largestChangeId > 0) {
-					List<GChange> googleChanges;
-					while (!(googleChanges = googleDrive.getAllChanges(largestChangeId + 1)).isEmpty()) {
+                    for (GChange change : googleChanges) {
+                        processChange(change);
+                        revision = change.getRevision();
+                    }
 
-						// TODO: revisar la sincronización de esto cuando theads
-						// > 1
-						LOG.info("Detected " + googleChanges.size() + " changes");
+                    // update revision to start next time there
+                    cache.setRevision(revision);
+                    LOG.info("New revision: " + revision);
+                }
 
-						for (GChange change : googleChanges) {
-							processChange(change.getFileId(), change);
-						}
-						largestChangeId = cache.getRevision();
-						LOG.info("Largest changeId found in local database " + largestChangeId);
-					}
+                LOG.debug("No remote changes...");
+            }
 
-					LOG.debug("No more changes to process.");
-				}
-			}
+            private void processChange(GChange change) {
 
-			private void processChange(String fileId, GChange change) {
-				final GFile localFile = cache.getFile(fileId);
-				if (change.getDeleted() || change.getFile().getLabels().contains("trashed")) {
-					if (localFile != null) {
-						LOG.info("File deleted remotely " + localFile.getName() + "...");
-						int deletedFiles = cache.deleteFile(localFile.getId());
-						LOG.info("Total affected files " + deletedFiles);
+                if (change.isRemoved() || change.getFile().getTrashed()) {
+                    final GFile localFile = cache.getFile(change.getFileId());
+                    if (localFile != null) {
+                        LOG.info("Remote deletion: " + localFile.getId());
+                        int deletedFiles = cache.deleteFile(localFile.getId());
+                        LOG.debug("Total records deleted: " + deletedFiles);
+                    }
+                    return;
+                }
 
-					}
-					// TODO: review this. must update some file to keep
-					// track of last change (better a file on disk)?
-					GFile rootFile = cache.getFile("root");
-					rootFile.setRevision(change.getId());
-					cache.updateFile(rootFile);
+                final GFile localFile = cache.getFile(change.getFileId());
+                if (localFile == null) {
+                    // TODO: arreglar el path?
+                    GFile changedFile = change.getFile();
+                    if (!changedFile.isDirectory()) {
+                        // if it's a directory we don't set revision so it's synchronized afterwards
+                        changedFile.setRevision(change.getRevision());
+                    }
+                    LOG.info("New remote file: " + changedFile.getId());
+                    cache.addOrUpdateFile(changedFile);
+                } else {
+                    // File updated
+                    GFile changedFile = change.getFile();
+                    changedFile.setRevision(change.getRevision());
+                    cache.addOrUpdateFile(changedFile);
+                    LOG.info("Remote update: " + localFile);
+                }
+            }
 
-					return;
-				}
+            private void syncPendingFolders() {
+                LOG.debug("Checking for pending folders to synchronize...");
+                try {
+                    // always sync pending directories first
+                    List<String> unsynchChilds;
+                    while (!(unsynchChilds = cache.getAllFoldersWithoutRevision()).isEmpty()) {
 
-				GFile changeFile = change.getFile();
-				// TODO: why am I not updating parents?
-				Set<String> parents = changeFile.getParents();
+                        LOG.info("Folders to synchronize: " + unsynchChilds.size());
 
-				if (localFile == null) {
-					// TODO: arreglar el path
-					if (!changeFile.isDirectory()) {
-						changeFile.setRevision(change.getId());
-					} else {
-						// si es un directorio no marcamos para que se sincronize luego
-					}
+                        List<Callable<Void>> tasks = new ArrayList<>();
+                        for (int i = 0; i < 10 && i < unsynchChilds.size(); i++) {
+                            final String unsynchChild = unsynchChilds.get(i);
+                            LOG.debug("Creating synch task for '" + unsynchChild + "'...");
+                            tasks.add(new Callable<Void>() {
+                                final String folderId = unsynchChild;
 
-					LOG.info("New file " + changeFile);
-					cache.addOrUpdateFile(changeFile);
+                                @Override
+                                public Void call() {
+                                    synchFolder(folderId);
+                                    return null;
+                                }
+                            });
+                        }
 
-				} else if (change.getId() > localFile.getRevision()) {
-					// File updated
-					// renamed file?
-					LOG.info("Updating file " + localFile.getDiffs(changeFile));
-					changeFile.setRevision(change.getId());
-					cache.addOrUpdateFile(changeFile);
-				} else {
-					LOG.error("Processing ununderstood change :(");
-					LOG.error("Updating file " + localFile + " to " + changeFile);
-					changeFile.setRevision(change.getId());
-					cache.addOrUpdateFile(changeFile);
-				}
-			}
+                        LOG.debug("Executing " + tasks.size() + " tasks...");
+                        List<Future<Void>> futures = executor.invokeAll(tasks);
+                        LOG.debug("Waiting for all executions to finish...");
+                        while (!futures.isEmpty()) {
+                            Thread.sleep(200);
+                            LOG.trace(".");
+                            futures.removeIf(Future::isDone);
+                        }
 
-			private void synchPendingFolders() {
-				LOG.debug("Checking for pending folders to synchronize...");
-				try {
-					// always sync pending directories first
-					List<String> unsynchChilds = null;
-					while (!(unsynchChilds = cache.getAllFolderByRevision(0)).isEmpty()) {
-						List<Callable<Void>> tasks = new ArrayList<Callable<Void>>();
+                        LOG.debug("All executions finished to run");
+                        syncPendingFolders();
+                    }
+                } catch (InterruptedException e) {
+                    LOG.error(e.getMessage(), e);
+                }
+                LOG.debug("Synchronization finalized OK");
+            }
+        };
 
-						int total = cache.getAllFolderByRevision(-1).size();
-						int totalPending = unsynchChilds.size();
-						LOG.info("Synchronizing folders (" + (total - totalPending) + " out of " + total + ")...");
+    }
 
-						int limit = 10;
-						for (final String unsynchChild : unsynchChilds) {
-							LOG.debug("Creating synch task for '" + unsynchChild + "'...");
-							tasks.add(new Callable<Void>() {
-								String folderId = unsynchChild;
+    /**
+     * Get remote folder and it's children and updates database
+     *
+     * @param folderId el id de la carpeta remota ("root" para especificar la raiz)
+     */
+    private void synchFolder(String folderId) {
+        try {
+            GFile remoteFile;
+            if (folderId.equals("root")) {
+                remoteFile = cache.getFile("root");
+            } else {
+                remoteFile = googleDrive.getFile(folderId);
+            }
 
-								@Override
-								public Void call() {
-									synchFolder(folderId);
-									return null;
-								}
-							});
-							limit--;
-							if (limit < 0) {
-								break;
-							}
-						}
-						LOG.debug("Executing " + tasks.size() + " tasks...");
-						List<Future<Void>> futures = executor.invokeAll(tasks);
-						LOG.debug("Waiting for all executions to finish...");
-						while (!futures.isEmpty()) {
-							Thread.sleep(200);
-							LOG.trace(".");
-							for (Iterator<Future<Void>> it = futures.iterator(); it.hasNext();) {
-								Future<Void> future = it.next();
-								if (future.isDone()) {
-									// LOG.info("Task result: " +
-									// future.get());
-									it.remove();
-								}
-							}
-						}
-						LOG.debug("All executions finished to run.  " + "Lets check again for any pending folders...");
-						synchPendingFolders();
-					}
-				} catch (InterruptedException e) {
-					LOG.error(e.getMessage(), e);
-				}
-				LOG.debug("Synchronization finalized OK");
-			}
-		};
+            if (remoteFile == null || remoteFile.getTrashed()) {
+                LOG.info("Remote deletion: " + folderId);
+                final int deleted = cache.deleteFile(folderId);
+                if (deleted > 0) {
+                    LOG.info("Local deletion: " + folderId);
+                } else {
+                    LOG.info("Location deletion: 0");
+                }
+                return;
+            }
 
-	}
+            if (!remoteFile.isDirectory()) {
+                throw new IllegalArgumentException("Can't sync folder '" + folderId + "' because it is a regular file");
+            }
 
-	/**
-	 * Synchronizes a directory
-	 * 
-	 * @param fileId
-	 *            the file to synchronize
-	 */
-	public void synch(String fileId) {
-		LOG.info("Synching " + fileId + "...");
-		long largestChangeId = cache.getRevision();
-		GFile file = googleDrive.getFile(fileId);
+            // Log action
+            if (cache.getFile(folderId) == null) {
+                LOG.info("Adding folder '" + remoteFile.getId() + "'");
+            } else {
+                LOG.info("Updating folder '" + remoteFile.getId() + "'");
+            }
 
-		if (file == null || file.getLabels().contains("trashed")) {
-			cache.deleteFile(fileId);
-		} else {
-            file.setRevision(largestChangeId);
-			cache.addOrUpdateFile(file);
-		}
-	}
+            String largestChangeId = cache.getRevision();
 
-	/**
-	 * Obtiene el directorio de google (y sus hijos inmediatos) y los actualiza en nuestra base de datos local
-	 * 
-	 * @param folderId
-	 *            el id de la carpeta remota ("root" para especificar la raiz)
-	 */
-	private void synchFolder(String folderId) {
+            LOG.debug("Recreating childs for folder '" + folderId + "'");
+            List<GFile> newChilds = googleDrive.list(folderId);
+            for (GFile file : newChilds) {
+                if (!file.isDirectory())
+                    file.setRevision(largestChangeId);
+            }
 
-		try {
-			// cogemos la revisión primero de todo por si luego hay cambios, que
-			// esos machaquen estos
-			long largestChangeId = googleDrive.getLargestChangeId(-1);
+            remoteFile.setRevision(largestChangeId);
 
-			GFile remoteFile = null;
-
-			if (folderId.equals("root")) {
-				remoteFile = cache.getFile("root");
-			} else {
-				remoteFile = googleDrive.getFile(folderId);
-				if (remoteFile == null || remoteFile.getLabels().contains("trashed")) {
-					// TODO: if exists maybe?
-					final int deleted = cache.deleteFile(folderId);
-					if (deleted > 0) {
-						LOG.info("Deleted " + deleted + " local files");
-					} else {
-						LOG.info("Nothing to local delete");
-					}
-					return;
-				}
-
-				if (!remoteFile.isDirectory()) {
-					throw new IllegalArgumentException("Can't sync folder '" + folderId + "' because it is a regular file");
-				}
-			}
-
-			{
-				// Local folder only to this context and to check revision
-				GFile localFolder = cache.getFile(folderId);
-				if (localFolder == null) {
-					LOG.info("Adding folder '" + remoteFile.getName() + "'");
-				} else if (localFolder.getRevision() < largestChangeId) {
-					LOG.info("Updating folder '" + remoteFile.getName() + "'");
-					remoteFile.setRevision(largestChangeId);
-				} else {
-					LOG.warn("Folder '" + folderId + "' already updated");
-					return;
-				}
-			}
-
-			LOG.debug("Recreating childs for folder '" + folderId + "'");
-
-			List<GFile> newLocalChilds = googleDrive.list(folderId);
-			if (newLocalChilds == null) {
-				LOG.warn("File deleted remotely while requesting list?");
-				cache.deleteFile(folderId);
-				return;
-			} else {
-				for (GFile file : newLocalChilds) {
-					if (!file.isDirectory())
-						file.setRevision(largestChangeId);
-				}
-			}
-
-			LOG.debug("Adding childs for '" + remoteFile.getName() + "':" + newLocalChilds);
-			cache.updateChilds(remoteFile, newLocalChilds);
-		} catch (Exception e) {
-			LOG.fatal(e.getMessage(), e);
-		}
-	}
+            LOG.info("Adding folder: '" + remoteFile.getId() + "' childs: " + newChilds.size());
+            cache.updateChilds(remoteFile, newChilds);
+        } catch (Error e) {
+            LOG.fatal(e.getMessage(), e);
+        }
+    }
 
 }
