@@ -278,7 +278,7 @@ public final class SQLiteCache implements Cache {
         }
     }
 
-    public void setRevision(String revision) {
+    public void updateRevision(String revision) {
         if (revision == null) {
             throw new IllegalArgumentException("revision can't be null");
         }

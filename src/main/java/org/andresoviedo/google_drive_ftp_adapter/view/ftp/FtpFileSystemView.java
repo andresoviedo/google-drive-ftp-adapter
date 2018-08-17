@@ -3,6 +3,7 @@ package org.andresoviedo.google_drive_ftp_adapter.view.ftp;
 import org.andresoviedo.google_drive_ftp_adapter.controller.Controller;
 import org.andresoviedo.google_drive_ftp_adapter.model.Cache;
 import org.andresoviedo.google_drive_ftp_adapter.model.GFile;
+import org.andresoviedo.google_drive_ftp_adapter.service.FtpGdriveSynchService;
 import org.andresoviedo.util.os.OSUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -34,19 +35,21 @@ public class FtpFileSystemView implements FileSystemFactory, FileSystemView {
     private final Pattern illegalChars;
     private FtpFileWrapper home;
     private FtpFileWrapper currentDir;
+    private FtpGdriveSynchService cacheUpdater;
 
-    public FtpFileSystemView(Controller controller, Cache model, Pattern illegalChars, User user) {
+    public FtpFileSystemView(Controller controller, Cache model, Pattern illegalChars, User user, FtpGdriveSynchService cacheUpdater) {
         this.controller = controller;
         this.model = model;
         this.illegalChars = illegalChars;
         this.user = user;
+        this.cacheUpdater = cacheUpdater;
     }
 
 
     @Override
     public FileSystemView createFileSystemView(User user) {
         LOG.info("Creating ftp view for user '" + user + "'...");
-        return new FtpFileSystemView(controller, model, illegalChars, user);
+        return new FtpFileSystemView(controller, model, illegalChars, user, cacheUpdater);
     }
 
     @Override
@@ -157,7 +160,10 @@ public class FtpFileSystemView implements FileSystemFactory, FileSystemView {
 
     @Override
     public void dispose() {
+        LOG.info("Disposing ftp view...");
         currentDir = null;
+        LOG.info("Stopping cache updated...");
+        cacheUpdater.stop();
     }
 
     /**

@@ -107,6 +107,11 @@ class FtpFileWrapper implements FtpFile {
     }
 
     @Override
+    public Object getPhysicalFile() {
+        return null;
+    }
+
+    @Override
     public boolean delete() {
         if (!doesExist()) {
             LOG.info("File '" + getName() + "' doesn't exists");

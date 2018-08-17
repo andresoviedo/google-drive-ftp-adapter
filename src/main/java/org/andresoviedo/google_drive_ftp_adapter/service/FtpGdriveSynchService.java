@@ -1,5 +1,6 @@
 package org.andresoviedo.google_drive_ftp_adapter.service;
 
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import org.andresoviedo.google_drive_ftp_adapter.model.Cache;
 import org.andresoviedo.google_drive_ftp_adapter.model.GChange;
 import org.andresoviedo.google_drive_ftp_adapter.model.GFile;
@@ -61,7 +62,9 @@ public final class FtpGdriveSynchService {
     }
 
     public void stop() {
+        LOG.info("Stopping synch service...");
         executor.shutdownNow();
+        timer.cancel();
     }
 
     private TimerTask createSyncChangesTask() {
@@ -77,6 +80,17 @@ public final class FtpGdriveSynchService {
                     syncPendingFolders();
                 } catch (Exception e) {
                     LOG.error(e.getMessage(), e);
+                    try {
+                        if (e.getCause() instanceof GoogleJsonResponseException) {
+                            int code = ((GoogleJsonResponseException) e).getDetails().getCode();
+                            if (code == 401) {
+                                LOG.error("Unauthorized. Cancelling timer..." + e.getMessage(), e);
+                                timer.cancel();
+                            }
+                        }
+                    } catch (Exception e1) {
+                        LOG.error("Could not handle exception: " + e.getMessage(), e);
+                    }
                 }
             }
 
@@ -86,7 +100,7 @@ public final class FtpGdriveSynchService {
                 LOG.debug("Local revision: " + revision);
                 if (revision == null) {
                     revision = googleDrive.getStartRevision();
-                    cache.setRevision(revision);
+                    cache.updateRevision(revision);
                     LOG.debug("New revision: " + revision);
                 }
 
@@ -101,7 +115,7 @@ public final class FtpGdriveSynchService {
                     }
 
                     // update revision to start next time there
-                    cache.setRevision(revision);
+                    cache.updateRevision(revision);
                     LOG.info("New revision: " + revision);
                 }
 

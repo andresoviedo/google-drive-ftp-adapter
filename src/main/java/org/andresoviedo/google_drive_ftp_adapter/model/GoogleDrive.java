@@ -203,12 +203,12 @@ public final class GoogleDrive {
      * @param filename the name of the directory
      * @return the newly create directory
      */
-    public String mkdir(String parentId, String filename) {
+    public GFile mkdir(String parentId, String filename) {
         GFile gFile = new GFile(Collections.singleton(parentId), filename);
-        return mkdir_impl(gFile, 3);
+        return create(mkdir_impl(gFile, 3));
     }
 
-    private String mkdir_impl(GFile gFile, int retry) {
+    private File mkdir_impl(GFile gFile, int retry) {
         try {
             // New file
             logger.info("Creating new directory...");
@@ -217,9 +217,9 @@ public final class GoogleDrive {
             file.setName(gFile.getName());
             file.setModifiedTime(new DateTime(System.currentTimeMillis()));
             file.setParents(new ArrayList<>(gFile.getParents()));
-            file = drive.files().create(file).execute();
+            file = drive.files().create(file).setFields(REQUEST_FILE_FIELDS).execute();
             logger.info("Directory created successfully: " + file.getId());
-            return file.getId();
+            return file;
         } catch (IOException e) {
             if (retry > 0) {
                 try {

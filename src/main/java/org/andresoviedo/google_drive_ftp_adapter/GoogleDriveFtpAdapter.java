@@ -39,7 +39,7 @@ final class GoogleDriveFtpAdapter {
         Controller controller = new Controller(cache, googleDrive, cacheUpdater);
 
         // FTP Setup
-        FtpServerFactory serverFactory = new GFtpServerFactory(controller, cache, configuration);
+        FtpServerFactory serverFactory = new GFtpServerFactory(controller, cache, configuration, cacheUpdater);
         server = serverFactory.createServer();
 
     }

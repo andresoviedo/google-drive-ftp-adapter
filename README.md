@@ -8,14 +8,16 @@ google-drive-ftp-adapter
 News
 ====
 
-**Online service (ftp/ftps)** - 04/08/2018
-- Currently working to put google-drive-ftp-adapter as an online service on the cloud
-- Follow this repository to keep you posted.
+# https://ftpdrive.andresoviedo.org
 
-**Latest Release** v1.6.0 - 15/08/2018
+**Online service (ftp/ftps)** - 17/08/2018
+- New: https://ftpdrive.andresoviedo.org
+
+**Latest Release** v1.6.1 - 17/08/2018
 - [google-drive-ftp-adapter-jar-with-dependencies.jar](build/google-drive-ftp-adapter-jar-with-dependencies.jar)
 
 **Latest fix**:
+- Latest version of apache ftp server core 1.1.1 
 - Google Drive API v3
 - Complete code refactoring & cleaning
 - Upload & Download using streams
@@ -276,6 +278,8 @@ Change Log
 
 (f) fixed, (i) improved, (n) new feature
 
+- v1.6.1 (17/08/2018)
+  - Latest version of apache ftp server core 1.1.1 
 - v1.6.0 (15/08/2018)
   - Google Drive API v3
   - Complete code refactoring & cleaning

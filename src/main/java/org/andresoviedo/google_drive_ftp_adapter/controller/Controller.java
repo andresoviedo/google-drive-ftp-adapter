@@ -107,7 +107,9 @@ public final class Controller {
 
     public boolean mkdir(String parentFileId, GFile gFile) {
         LOG.info("Creating directory " + gFile.getId() + "...");
-        return googleDrive.mkdir(parentFileId, gFile.getName()) != null;
+        GFile newDir = googleDrive.mkdir(parentFileId, gFile.getName());
+        cache.addOrUpdateFile(newDir);
+        return true;
     }
 
     // TODO: Implement offset?

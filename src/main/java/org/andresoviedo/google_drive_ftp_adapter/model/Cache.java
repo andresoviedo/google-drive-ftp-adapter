@@ -27,7 +27,7 @@ public interface Cache {
 
     String getRevision();
 
-    void setRevision(String revision);
+    void updateRevision(String revision);
 
     List<String> getAllFoldersWithoutRevision();
 

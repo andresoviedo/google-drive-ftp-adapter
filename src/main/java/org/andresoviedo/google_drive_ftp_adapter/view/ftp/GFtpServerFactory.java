@@ -2,6 +2,7 @@ package org.andresoviedo.google_drive_ftp_adapter.view.ftp;
 
 import org.andresoviedo.google_drive_ftp_adapter.controller.Controller;
 import org.andresoviedo.google_drive_ftp_adapter.model.Cache;
+import org.andresoviedo.google_drive_ftp_adapter.service.FtpGdriveSynchService;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.ftpserver.ConnectionConfigFactory;
@@ -23,11 +24,13 @@ public class GFtpServerFactory extends FtpServerFactory {
     private final Cache model;
     private final Properties configuration;
     private final Pattern illegalChars;
+    private final FtpGdriveSynchService cacheUpdater;
 
-    public GFtpServerFactory(Controller controller, Cache model, Properties configuration) {
+    public GFtpServerFactory(Controller controller, Cache model, Properties configuration, FtpGdriveSynchService cacheUpdater) {
         super();
         this.controller = controller;
         this.model = model;
+        this.cacheUpdater = cacheUpdater;
         this.configuration = configuration;
         this.illegalChars = Pattern.compile(configuration.getProperty("os.illegalCharacters", DEFAULT_ILLEGAL_CHARS_REGEX));
         LOG.info("Configured illegalchars '" + illegalChars + "'");
@@ -35,7 +38,7 @@ public class GFtpServerFactory extends FtpServerFactory {
     }
 
     private void init() {
-        setFileSystem(new FtpFileSystemView(controller, model, illegalChars, null));
+        setFileSystem(new FtpFileSystemView(controller, model, illegalChars, null, cacheUpdater));
         ConnectionConfigFactory connectionConfigFactory = new ConnectionConfigFactory();
         connectionConfigFactory.setMaxThreads(10);
         connectionConfigFactory.setAnonymousLoginEnabled(true);
