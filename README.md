@@ -76,7 +76,7 @@ Notes
 Downloads
 =========
 
-Latest Release 1.6.0 - 15/08/2018
+Latest Release 1.6.1 - 17/08/2018
 
 - /¡\ Java 8 Required          : [jar-with-dependencies.jar](build/google-drive-ftp-adapter-jar-with-dependencies.jar)
 
