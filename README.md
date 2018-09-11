@@ -8,10 +8,8 @@ google-drive-ftp-adapter
 News
 ====
 
-# https://ftpdrive.andresoviedo.org
-
 **Online service (ftp/ftps)** - 17/08/2018
-- New: https://ftpdrive.andresoviedo.org
+- New: [google-drive-ftp-adapter-online](https://github.com/andresoviedo/google-drive-ftp-adapter-online)
 
 **Latest Release** v1.6.1 - 17/08/2018
 - [google-drive-ftp-adapter-jar-with-dependencies.jar](build/google-drive-ftp-adapter-jar-with-dependencies.jar)
