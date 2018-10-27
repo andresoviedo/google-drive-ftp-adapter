@@ -41,7 +41,8 @@ public class GFtpServerFactory extends FtpServerFactory {
         setFileSystem(new FtpFileSystemView(controller, model, illegalChars, null, cacheUpdater));
         ConnectionConfigFactory connectionConfigFactory = new ConnectionConfigFactory();
         connectionConfigFactory.setMaxThreads(10);
-        connectionConfigFactory.setAnonymousLoginEnabled(true);
+        connectionConfigFactory.setAnonymousLoginEnabled(Boolean.valueOf(this.configuration.
+                getProperty("ftp.anonymous.enabled", "false")));
         setConnectionConfig(connectionConfigFactory.createConnectionConfig());
         setUserManager(new FtpUserManagerFactory(configuration).createUserManager());
 

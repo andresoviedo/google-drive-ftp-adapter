@@ -25,15 +25,28 @@ class FtpUserManager extends AbstractUserManager {
         super(adminName, passwordEncryptor);
         this.configuration = configuration;
 
+        // load users
         BaseUser user = loadUser("", "user", "user");
         users.put(user.getName(), user);
         int i = 2;
         while ((user = loadUser(String.valueOf(i++), null, null)) != null) {
             users.put(user.getName(), user);
         }
+
+        // configure anonymous user
         user = new BaseUser();
         user.setName("anonymous");
+        user.setHomeDirectory(configuration.getProperty("ftp.anonymous.home", ""));
+        user.setMaxIdleTime(300);
         user.setEnabled(Boolean.valueOf(configuration.getProperty("ftp.anonymous.enabled", "false")));
+        List<Authority> authorities = new ArrayList<>();
+        final String rights = configuration.getProperty("ftp.anonymous.rights", "pwd|cd|dir|put|get|rename|delete|mkdir|rmdir|append");
+        parseAuthorities(authorities, rights);
+        authorities.add(new WritePermission());
+        authorities.add(new ConcurrentLoginPermission(10, 5));
+        user.setAuthorities(authorities);
+
+        // add user to application
         users.put(user.getName(), user);
     }
 
@@ -50,7 +63,20 @@ class FtpUserManager extends AbstractUserManager {
         user.setName(username);
         user.setPassword(password);
         List<Authority> authorities = new ArrayList<>();
+
+        // configure permissions
         final String rights = configuration.getProperty("ftp.rights" + suffix, "pwd|cd|dir|put|get|rename|delete|mkdir|rmdir|append");
+        parseAuthorities(authorities, rights);
+
+        authorities.add(new WritePermission());
+        authorities.add(new ConcurrentLoginPermission(10, 5));
+        user.setAuthorities(authorities);
+        LOG.info("FTP User Manager configured for user '" + user.getName() + "'");
+        LOG.info("FTP rights '" + rights + "'");
+        return user;
+    }
+
+    private static void parseAuthorities(List<Authority> authorities, String rights) {
         if (rights.contains("pwd")) {
             authorities.add(new Authorities.PWDPermission());
         }
@@ -81,21 +107,11 @@ class FtpUserManager extends AbstractUserManager {
         if (rights.contains("append")) {
             authorities.add(new Authorities.AppendPermission());
         }
-
-        authorities.add(new WritePermission());
-        authorities.add(new ConcurrentLoginPermission(10, 5));
-        user.setAuthorities(authorities);
-        LOG.info("FTP User Manager configured for user '" + user.getName() + "'");
-        LOG.info("FTP rights '" + rights + "'");
-        return user;
     }
 
     @Override
     public User getUserByName(String username) {
-        if (users.containsKey(username)) {
-            return users.get(username);
-        }
-        return null;
+        return users.get(username);
     }
 
     @Override
@@ -125,12 +141,11 @@ class FtpUserManager extends AbstractUserManager {
         if (UsernamePasswordAuthentication.class.isAssignableFrom(authentication.getClass())) {
             UsernamePasswordAuthentication upAuth = (UsernamePasswordAuthentication) authentication;
             BaseUser user = users.get(upAuth.getUsername());
-            if (user != null && user.getEnabled() && (user.getName().equals("anonymous") || user.getPassword().equals(upAuth.getPassword()))) {
+            if (user != null && user.getPassword().equals(upAuth.getPassword())) {
                 return user;
             }
         } else if (AnonymousAuthentication.class.isAssignableFrom(authentication.getClass())) {
-            BaseUser anonymous = users.get("anonymous");
-            return anonymous.getEnabled() ? anonymous : null;
+            return users.get("anonymous");
         }
         return null;
     }

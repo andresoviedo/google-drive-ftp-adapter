@@ -5,16 +5,14 @@ google-drive-ftp-adapter
 
 ![alt tag](https://raw.github.com/andresoviedo/google-drive-ftp-adapter/master/doc/images/google-drive-logo.png)
 
+
 News
 ====
 
-**Online service (ftp/ftps)** - 17/08/2018
-- New: [google-drive-ftp-adapter-online](https://github.com/andresoviedo/google-drive-ftp-adapter-online)
-
-**Latest Release** v1.6.1 - 17/08/2018
+**Latest Release** v1.6.2 - 27/10/2018
 - [google-drive-ftp-adapter-jar-with-dependencies.jar](build/google-drive-ftp-adapter-jar-with-dependencies.jar)
 
-**Latest fix**:
+**Latest fixes**:
 - Latest version of apache ftp server core 1.1.1 
 - Google Drive API v3
 - Complete code refactoring & cleaning
@@ -23,6 +21,8 @@ News
 - Improved performance
 - Bug fixing
 
+**Online service (ftp/ftps)** - 17/08/2018
+- New: [google-drive-ftp-adapter-online](https://github.com/andresoviedo/google-drive-ftp-adapter-online)
 
 About
 =====
@@ -30,26 +30,26 @@ About
 - With google-drive-ftp-adapter you can access your Google Drive through FTP protocols.
 - You can use it in conjunction with any FTP client: shell FTP, Beyond Compare, FileZilla, etc.
 
+
 Features
 ========
 
 - Standalone Java application (Java 8)
-- Apache Mina FTP Server as a gateway to your google drive files (Drive API v3)
-- Internal SQLite Cache for fast access to data
-- Google Drive cache synchronisation by polling every 10 seconds
-- Users permissions
-- Supported FTP commands:
+- Apache Mina FTP Server 
+- Google Drive API v3
+- SQLite Index Cache
+- Index Cache Synchronisation every 10 seconds
+- User Management with permissions
+- All FTP commands supported:
   - List folders and files
   - Rename files
   - Create or delete directories
-  - Upload new files (includes google docs conversion to and from)
-  - Download files to local PC (includes google docs conversion to and from)
+  - Upload new files
+  - Download files to local PC
   - Edit remote timestamps
   - Trash files or folders
+- Google Docs Support
 
-**Ideas for the future**:
-- implement the apache commons-vfs interface [(Link)](https://commons.apache.org/proper/commons-vfs/)
-- implement linux cif vfs protocol [(Link)](http://www.ubiqx.org/cifs/Intro.html)
 
 Screenshots
 ===========
@@ -74,7 +74,7 @@ Notes
 Downloads
 =========
 
-Latest Release 1.6.1 - 17/08/2018
+Latest Release 1.6.2 - 27/10/2018
 
 - /¡\ Java 8 Required          : [jar-with-dependencies.jar](build/google-drive-ftp-adapter-jar-with-dependencies.jar)
 
@@ -94,21 +94,19 @@ Install java 8 and maven 3. Then execute the following commands in the terminal:
 Run it!
 ======
 
-- Install java 8. Then double click on jar-with-dependencies.jar or execute the following command in the terminal:
+Double click on file google-drive-ftp-adapter-jar-with-dependencies.jar or execute the following command in the terminal:
 
-    java -jar target/google-drive-ftp-adapter-jar-with-dependencies.jar
+    java -jar google-drive-ftp-adapter-jar-with-dependencies.jar
 
-- Once the application is started, Google with request authorization through your browser to allow Google Drive FTP access to your data. Click "OK". 
+Once the application is started, Google with request authorization through your browser to allow Google Drive FTP access to your data. Click "OK". 
 	
 
 Test it!
 ========
 
-- Open ftp://user:user@localhost:1821/ in your browser to connect to your Google Drive.
+Open ftp://user:user@localhost:1821/ in your browser to connect to your Google Drive.
 
-- Or open terminal and type "ftp localhost 1821": Type "user" as the username and "user" as password. Once in FTP, type "dir" to see your drive files.
-
-Ftp example:
+Or open terminal and type "ftp localhost 1821": Type "user" as the username and "user" as password. Once in FTP, type "dir" to see your drive files.
 
     $ ftp localhost 1821
     Connected to localhost.
@@ -134,62 +132,31 @@ Application Configuration
 =========================
 
 The application works fine without configuration. However, a default 'configuration.properties' file is provided
-in case you want to customize them.
+in case you want to configure application.
 
+For the full list of parameters and example check file : [configuration.properties](build/configuration.properties)
+
+Here are the main application parameters you can customize:
+
+    # TCP port where the application will listen for incoming connections 
+    port=1821
+    
+    # FTP anonymous login
+    ftp.anonymous.enabled=false
+    ftp.anonymous.home=
+    ftp.anonymous.rights=pwd|cd|dir|put|get|rename|delete|mkdir|rmdir|append
+    
+    # FTP users credentials
+    ftp.user=user
+    ftp.pass=user
+    ftp.home=
+    ftp.rights=pwd|cd|dir|put|get|rename|delete|mkdir|rmdir|append
+
+
+To configure application just put 'configuration.properties' in the same folder.
 If you want, you can also customize the path of the 'configuration.properties' when launching the app:
 
     $ java -jar google-drive-ftp-adapter.jar [propertiesFilename] 
-    
-Here are the application parameters you can customize:
-
-    # log4j.fileId if you have more than 1 instance of the app running
-    log4j.fileId=
-    
-    # account name associated to cache and Google credentials 
-    account=default
-    
-    # FTP binding address and port listening for incoming connections
-	server=
-    port=1821
-    
-    # FTP Enable anonymous login?
-    ftp.anonymous.enabled=false
-    
-    # FTP users credentials
-    ftp.user=foo
-    ftp.pass=foopass
-    ftp.home=
-    ftp.rights=pwd|cd|dir|put|get|rename|delete|mkdir|rmdir|append
-    ftp.user2=bar
-    ftp.pass2=barpass
-    ftp.home2=path/to/bar/home
-    ftp.rights2=pwd|get
-    ftp.user3=baz
-    ftp.pass3=bazpass
-    ftp.home3=path/to/baz/home
-    ftp.rights3=dir|put
-    
-    # Illegal characters for your file system so file copying works fine  
-    os.illegalCharacters=\\/|[\\x00-\\x1F\\x7F]|\\`|\\?|\\*|\\\\|\\<|\\>|\\||\\"|\\:
-
-**account**
-
-This is the name associated to the cache and Google credentials, so the next time you run the application you don't
-have to re-login or resynchronize all of the application cache. This is also the name of the subfolder under "/data"
-where information is going to be stored. Default value is "default".
-
-**server**
-
-Binding address to listen for incoming connections. Empty to bind all addresses.
-
-**port**
-
-TCP port number where the ftp adapter is going to listen for ftp clients. Default FTP port is 21, but In Linux 
-this is a reserved port and ports below 1024 are privileged, so we use port 1821. Default is 1821.
-There is another start2.cmd as example (Windows) that start an FTP adapter at port 22. 
-
-- Note: If you have different Google Drive accounts, you can launch multiple google-drive-ftp-adapter 
-  in the same machine, each listening at a different port. Just put a different fileId so they write logs in different files.
 
 
 F.A.Q.
@@ -205,10 +172,8 @@ F.A.Q.
  
  - Question: How can I start a secondary server?
    - Answer: You have 2 options so far:
-   	 * in the start2.cmd you have an example how to launch a secondary server passing an accountId and secondary port number. 
-   	   You may have different start.cmd to start different ftp servers (i.e. start-foo.cmd, start-bar.cmd).
-     * Or instead of passing the accounId and port number, you can pass a /path/to/secondary.properties 
-       That way you can specify different account ids and ports inside the file. 
+   	 * You can launch the app passing applications arguments like "my-account" "1234" which corresponds to accountId and port.    	 
+     * You can launch the app passing an application argument like "/path/to/secondary.properties" 
 
  - Question: When I launch the application nothing happens.
    - Answer:  Check that in the console or file log there is no errors. Check that your default Internet browser doesn't have any plugin
@@ -220,17 +185,18 @@ Known Issues
 
 - If you are in Windows 10 and you an error like the following, try to run program or terminal as administrator: 
   java.lang.UnsatisfiedLinkError: C:\Users\Zeo\AppData\Local\Temp\sqlite-3.7.151-x86-sqlitejdbc.dll: Access is denied
-  
-- For some type of files, the size of files reported by Google differs from what the local operating system does (for example: .txt and .3gp) (Fix TBA)
+- For some type of files, the size of files reported by Google differs from what the local operating system does (for example: .txt and .3gp)
 - If you have timeout problems because of slow internet connectivity, try incrementing the timeout in your FTP client.
-  
+
+
 Disclaimer
 ==========
 	
 - This application is released under the LGPL license. Use this application at your own risk.
-- This application uses a Google Drive API Key with a courtesy of 10 requests/second/user and 10 million
-  request/day. When it reaches the quota the application may stop working.
+- This application uses a Google Drive API Key with a courtesy of 10 requests/second/user and 10 million 
+request/day. When it reaches the quota the application may stop working.
   
+
 Project Info
 ============ 
 
@@ -243,18 +209,17 @@ partitions and I used to have all my files in one of this partitions.
 
 So this application basically starts a FTP server in your local machine emulating that it is hosting your 
 Google Drive files, acting as a gateway. Once this setup is done, you can connect any FTP client to connect 
-to your Google Drive files. I use it in conjunction with Beyond Compare to compare my local files 
-(stored anywhere in my cloud ;) and compare them to ones I have in the Google Drive cloud.
+to your Google Drive files. I use it in conjunction with Beyond Compare to compare my local files and compare
+them to ones I have in the Google Drive cloud.
 
 You are free to use this program while you keep this file and the authoring comments in the code. Any comments 
 and suggestions are welcome.
 
+
 Get Involved
 ============
 
-If you wanna contribute, users are requesting this: 
-* Support for FTPs (secure protocol)
-* Make google-drive-ftp-adapter a service available on Internet
+If you want to contribute you can start by solving the the current issues or opening a new one.
 
 
 Contact Information
@@ -276,6 +241,8 @@ Change Log
 
 (f) fixed, (i) improved, (n) new feature
 
+- v1.6.2 (27/10/2018)
+  - Fixes #31 : anonymous user not working 
 - v1.6.1 (17/08/2018)
   - Latest version of apache ftp server core 1.1.1 
 - v1.6.0 (15/08/2018)
