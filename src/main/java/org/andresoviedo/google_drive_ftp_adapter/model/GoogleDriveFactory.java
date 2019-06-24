@@ -34,6 +34,12 @@ public final class GoogleDriveFactory {
      * Application name as of Google Drive Service
      */
     private static final String APPLICATION_NAME = "google-drive-ftp-adapter";
+    
+    /**
+     * Default port for authentication server
+     */
+    private int authPort = -1;
+   
     /**
      * Global instance of the JSON factory.
      */
@@ -52,6 +58,8 @@ public final class GoogleDriveFactory {
     public GoogleDriveFactory(Properties configuration) {
         /* Directory to store user credentials. */
         java.io.File DATA_STORE_DIR = new java.io.File("data/google/" + configuration.getProperty("account", "default"));
+        
+        authPort = Integer.parseInt(configuration.getProperty("auth.port", String.valueOf("-1")));
 
         try {
             // initialize the data store factory
@@ -108,7 +116,7 @@ public final class GoogleDriveFactory {
         GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(httpTransport, JSON_FACTORY, clientSecrets, scopes)
                 .setDataStoreFactory(dataStoreFactory).build();
         // authorize
-        return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
+        return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver.Builder().setPort(authPort).build()).authorize("user");
     }
 
     public Drive getDrive() {
